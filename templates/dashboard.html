@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - LUM System{% endblock %}
+
+{% block css_specific %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+{% endblock %}
+
+{% block page_title %}Dashboard Analytics{% endblock %}
+
+{% block content %}
+<div class="dashboard-header">
+    <h2><i class="fas fa-chart-line"></i> Métricas en Tiempo Real</h2>
+    <div class="dashboard-controls">
+        <div class="date-filter">
+            <label for="periodoSelect">Período:</label>
+            <select id="periodoSelect" class="form-control">
+                <option value="hoy">Hoy</option>
+                <option value="semana">Esta Semana</option>
+                <option value="mes" selected>Este Mes</option>
+                <option value="trimestre">Este Trimestre</option>
+            </select>
+        </div>
+        <button class="btn-refresh" id="btnRefresh" title="Actualizar datos">
+            <i class="fas fa-sync-alt"></i>
+        </button>
+    </div>
+</div>
+
+<!-- Estadísticas Rápidas -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon">
+            <i class="fas fa-shopping-cart"></i>
+        </div>
+        <div class="stat-info">
+            <h3 id="totalPedidos">0</h3>
+            <p>Total Pedidos</p>
+            <span class="stat-trend positive" id="trendPedidos">+0%</span>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon">
+            <i class="fas fa-check-circle"></i>
+        </div>
+        <div class="stat-info">
+            <h3 id="entregasExitosas">0</h3>
+            <p>Entregas Exitosas</p>
+            <span class="stat-trend positive" id="trendEntregas">+0%</span>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon">
+            <i class="fas fa-route"></i>
+        </div>
+        <div class="stat-info">
+            <h3 id="rutasActivas">0</h3>
+            <p>Rutas Activas</p>
+            <span class="stat-trend neutral" id="trendRutas">0%</span>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon">
+            <i class="fas fa-tachometer-alt"></i>
+        </div>
+        <div class="stat-info">
+            <h3 id="tasaExito">0%</h3>
+            <p>Tasa de Éxito</p>
+            <span class="stat-trend positive" id="trendTasa">+0%</span>
+        </div>
+    </div>
+</div>
+
+<!-- Gráficas Principales -->
+<div class="charts-container">
+    <div class="chart-row">
+        <div class="chart-card">
+            <div class="chart-header">
+                <h3><i class="fas fa-chart-pie"></i> Entregas por Estado</h3>
+                <div class="chart-legend" id="legendEntregas"></div>
+            </div>
+            <div id="chartEntregas" class="chart"></div>
+        </div>
+
+        <div class="chart-card">
+            <div class="chart-header">
+                <h3><i class="fas fa-chart-bar"></i> Pedidos por Día</h3>
+                <div class="chart-filters">
+                    <select id="filtroPedidos" class="form-control-sm">
+                        <option value="cantidad">Por Cantidad</option>
+                        <option value="valor">Por Valor</option>
+                    </select>
+                </div>
+            </div>
+            <div id="chartPedidos" class="chart"></div>
+        </div>
+    </div>
+
+    <div class="chart-row">
+        <div class="chart-card">
+            <div class="chart-header">
+                <h3><i class="fas fa-map-marked-alt"></i> Entregas por Zona</h3>
+            </div>
+            <div id="chartZonas" class="chart"></div>
+        </div>
+
+        <div class="chart-card">
+            <div class="chart-header">
+                <h3><i class="fas fa-clock"></i> Tiempos de Entrega</h3>
+                <div class="chart-filters">
+                    <select id="filtroTiempos" class="form-control-sm">
+                        <option value="promedio">Tiempo Promedio</option>
+                        <option value="distribucion">Distribución</option>
+                    </select>
+                </div>
+            </div>
+            <div id="chartTiempos" class="chart"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Métricas Secundarias -->
+<div class="secondary-metrics">
+    <div class="metric-card">
+        <h4><i class="fas fa-truck"></i> Eficiencia de Repartidores</h4>
+        <div class="metric-value" id="eficienciaRepartidores">0%</div>
+        <div class="metric-progress">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressEficiencia" style="width: 0%"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="metric-card">
+        <h4><i class="fas fa-gas-pump"></i> Costo por KM</h4>
+        <div class="metric-value" id="costoPorKm">$0.00</div>
+        <div class="metric-change negative" id="changeCostoKm">+0%</div>
+    </div>
+
+    <div class="metric-card">
+        <h4><i class="fas fa-exclamation-triangle"></i> Incidencias Activas</h4>
+        <div class="metric-value" id="incidenciasActivas">0</div>
+        <div class="metric-badge critical" id="badgeIncidencias">0 Críticas</div>
+    </div>
+</div>
+
+<!-- Actividad Reciente -->
+<div class="recent-activity">
+    <div class="activity-header">
+        <h3><i class="fas fa-history"></i> Actividad Reciente</h3>
+        <button class="btn-view-all" onclick="window.location.href='/entregas'">
+            Ver Todas <i class="fas fa-arrow-right"></i>
+        </button>
+    </div>
+    <div class="activity-list" id="activityList">
+        <div class="activity-item loading">
+            <i class="fas fa-spinner fa-spin"></i>
+            <span>Cargando actividad...</span>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block js_specific %}
+<script src="https://code.highcharts.com/highcharts.js"></script>
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}

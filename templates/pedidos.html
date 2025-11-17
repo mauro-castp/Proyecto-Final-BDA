@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+
+{% block title %}Pedidos - LUM System{% endblock %}
+
+{% block css_specific %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pedidos.css') }}">
+{% endblock %}
+
+{% block page_title %}Gestión de Pedidos{% endblock %}
+
+{% block content %}
+<div class="pedidos-header">
+    <div class="header-actions">
+        <button class="btn btn-primary" onclick="pedidosApp.mostrarModalNuevoPedido()">
+            <i class="fas fa-plus"></i> Nuevo Pedido
+        </button>
+        <div class="header-filters">
+            <select id="filtroEstado" class="form-control">
+                <option value="">Todos los estados</option>
+                <option value="pendiente">Pendientes</option>
+                <option value="procesando">En Proceso</option>
+                <option value="completado">Completados</option>
+                <option value="cancelado">Cancelados</option>
+            </select>
+            <input type="date" id="filtroFecha" class="form-control">
+            <button class="btn btn-outline" onclick="pedidosApp.aplicarFiltros()">
+                <i class="fas fa-filter"></i> Filtrar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Estadísticas Rápidas -->
+<div class="pedidos-stats">
+    <div class="stat-item">
+        <div class="stat-number" id="totalPedidos">0</div>
+        <div class="stat-label">Total Pedidos</div>
+    </div>
+    <div class="stat-item">
+        <div class="stat-number" id="pedidosPendientes">0</div>
+        <div class="stat-label">Pendientes</div>
+    </div>
+    <div class="stat-item">
+        <div class="stat-number" id="pedidosProceso">0</div>
+        <div class="stat-label">En Proceso</div>
+    </div>
+    <div class="stat-item">
+        <div class="stat-number" id="pedidosCompletados">0</div>
+        <div class="stat-label">Completados</div>
+    </div>
+</div>
+
+<!-- Lista de Pedidos -->
+<div class="pedidos-container">
+    <div class="table-responsive">
+        <table class="table pedidos-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Cliente</th>
+                    <th>Fecha</th>
+                    <th>Productos</th>
+                    <th>Total</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="tablaPedidos">
+                <tr>
+                    <td colspan="7" class="text-center">
+                        <div class="loading-spinner">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <span>Cargando pedidos...</span>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Paginación -->
+<div class="pagination-container">
+    <div class="pagination-info">
+        Mostrando <span id="mostrandoDesde">0</span>-<span id="mostrandoHasta">0</span> de <span
+            id="totalRegistros">0</span> pedidos
+    </div>
+    <div class="pagination-controls">
+        <button class="btn-pagination" id="btnAnterior" disabled>
+            <i class="fas fa-chevron-left"></i> Anterior
+        </button>
+        <div class="pagination-numbers" id="paginationNumbers"></div>
+        <button class="btn-pagination" id="btnSiguiente" disabled>
+            Siguiente <i class="fas fa-chevron-right"></i>
+        </button>
+    </div>
+</div>
+
+<!-- Modal Nuevo Pedido -->
+<div id="modalNuevoPedido" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-plus-circle"></i> Nuevo Pedido</h3>
+            <button class="btn-close" onclick="pedidosApp.cerrarModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form id="formNuevoPedido">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="clienteSelect">Cliente *</label>
+                        <select id="clienteSelect" class="form-control" required>
+                            <option value="">Seleccionar cliente...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="direccionEntrega">Dirección de Entrega</label>
+                        <select id="direccionEntrega" class="form-control" required>
+                            <option value="">Seleccionar dirección...</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Productos</label>
+                    <div class="productos-container">
+                        <div class="producto-item" id="productoPlantilla" style="display: none;">
+                            <select class="producto-select form-control">
+                                <option value="">Seleccionar producto...</option>
+                            </select>
+                            <input type="number" class="cantidad-input form-control" placeholder="Cantidad" min="1"
+                                value="1">
+                            <span class="precio-unitario">$0.00</span>
+                            <span class="subtotal">$0.00</span>
+                            <button type="button" class="btn-remove-producto"
+                                onclick="pedidosApp.eliminarProducto(this)">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div id="listaProductos"></div>
+                        <button type="button" class="btn btn-outline" onclick="pedidosApp.agregarProducto()">
+                            <i class="fas fa-plus"></i> Agregar Producto
+                        </button>
+                    </div>
+                </div>
+
+                <div class="resumen-pedido">
+                    <div class="resumen-item">
+                        <span>Subtotal:</span>
+                        <span id="subtotalTotal">$0.00</span>
+                    </div>
+                    <div class="resumen-item">
+                        <span>Envío:</span>
+                        <span id="costoEnvio">$0.00</span>
+                    </div>
+                    <div class="resumen-item total">
+                        <span>Total:</span>
+                        <span id="totalPedido">$0.00</span>
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="pedidosApp.cerrarModal()">
+                Cancelar
+            </button>
+            <button type="button" class="btn btn-primary" onclick="pedidosApp.crearPedido()">
+                <i class="fas fa-save"></i> Crear Pedido
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Detalles Pedido -->
+<div id="modalDetallesPedido" class="modal">
+    <div class="modal-content modal-lg">
+        <div class="modal-header">
+            <h3><i class="fas fa-info-circle"></i> Detalles del Pedido</h3>
+            <button class="btn-close" onclick="pedidosApp.cerrarModalDetalles()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body" id="detallesPedidoContent">
+            <!-- Contenido dinámico -->
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block js_specific %}
+<script src="{{ url_for('static', filename='js/pedidos.js') }}"></script>
+{% endblock %}

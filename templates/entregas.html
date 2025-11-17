@@ -1,0 +1,291 @@
+{% extends "base.html" %}
+
+{% block title %}Entregas - LUM System{% endblock %}
+
+{% block css_specific %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/entregas.css') }}">
+{% endblock %}
+
+{% block page_title %}Gestión de Entregas{% endblock %}
+
+{% block content %}
+<div class="entregas-header">
+    <div class="header-actions">
+        {% if session.user_role in ['Admin', 'Planificador'] %}
+        <button class="btn btn-primary" onclick="entregasApp.mostrarModalAsignarEntrega()">
+            <i class="fas fa-truck-loading"></i> Asignar Entrega
+        </button>
+        {% endif %}
+        <div class="header-filters">
+            <select id="filtroEstado" class="form-control">
+                <option value="">Todos los estados</option>
+                <option value="pendiente">Pendientes</option>
+                <option value="asignado">Asignadas</option>
+                <option value="en_camino">En Camino</option>
+                <option value="entregado">Entregadas</option>
+                <option value="fallido">Fallidas</option>
+            </select>
+            <select id="filtroRepartidor" class="form-control">
+                <option value="">Todos los repartidores</option>
+            </select>
+            <input type="date" id="filtroFecha" class="form-control">
+            <button class="btn btn-outline" onclick="entregasApp.aplicarFiltros()">
+                <i class="fas fa-filter"></i> Filtrar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Estadísticas Rápidas -->
+<div class="entregas-stats">
+    <div class="stat-item">
+        <div class="stat-number" id="totalEntregas">0</div>
+        <div class="stat-label">Total Entregas</div>
+    </div>
+    <div class="stat-item">
+        <div class="stat-number" id="entregasPendientes">0</div>
+        <div class="stat-label">Pendientes</div>
+    </div>
+    <div class="stat-item">
+        <div class="stat-number" id="entregasCamino">0</div>
+        <div class="stat-label">En Camino</div>
+    </div>
+    <div class="stat-item">
+        <div class="stat-number" id="entregasExitosas">0</div>
+        <div class="stat-label">Exitosas</div>
+    </div>
+    <div class="stat-item">
+        <div class="stat-number" id="tasaExito">0%</div>
+        <div class="stat-label">Tasa de Éxito</div>
+    </div>
+</div>
+
+<!-- Mapa de Entregas (placeholder) -->
+<div class="mapa-container" id="mapaContainer">
+    <div class="mapa-header">
+        <h4><i class="fas fa-map-marked-alt"></i> Mapa de Entregas</h4>
+        <div class="mapa-controls">
+            <button class="btn btn-outline btn-sm" onclick="entregasApp.actualizarMapa()">
+                <i class="fas fa-sync-alt"></i> Actualizar
+            </button>
+        </div>
+    </div>
+    <div class="mapa-placeholder" id="mapaPlaceholder">
+        <i class="fas fa-map"></i>
+        <p>Visualización del mapa de entregas</p>
+        <small>Integrar con Google Maps o similar</small>
+    </div>
+</div>
+
+<!-- Lista de Entregas -->
+<div class="entregas-container">
+    <div class="table-responsive">
+        <table class="table entregas-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Pedido</th>
+                    <th>Cliente</th>
+                    <th>Repartidor</th>
+                    <th>Ruta</th>
+                    <th>Fecha Estimada</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="tablaEntregas">
+                <tr>
+                    <td colspan="8" class="text-center">
+                        <div class="loading-spinner">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <span>Cargando entregas...</span>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Paginación -->
+<div class="pagination-container">
+    <div class="pagination-info">
+        Mostrando <span id="mostrandoDesde">0</span>-<span id="mostrandoHasta">0</span> de <span
+            id="totalRegistros">0</span> entregas
+    </div>
+    <div class="pagination-controls">
+        <button class="btn-pagination" id="btnAnterior" disabled>
+            <i class="fas fa-chevron-left"></i> Anterior
+        </button>
+        <div class="pagination-numbers" id="paginationNumbers"></div>
+        <button class="btn-pagination" id="btnSiguiente" disabled>
+            Siguiente <i class="fas fa-chevron-right"></i>
+        </button>
+    </div>
+</div>
+
+<!-- Modal Asignar Entrega -->
+<div id="modalAsignarEntrega" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-truck-loading"></i> Asignar Entrega</h3>
+            <button class="btn-close" onclick="entregasApp.cerrarModalAsignar()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form id="formAsignarEntrega">
+                <div class="form-group">
+                    <label for="pedidoSelect">Pedido *</label>
+                    <select id="pedidoSelect" class="form-control" required>
+                        <option value="">Seleccionar pedido...</option>
+                    </select>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="rutaSelect">Ruta *</label>
+                        <select id="rutaSelect" class="form-control" required>
+                            <option value="">Seleccionar ruta...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="vehiculoSelect">Vehículo *</label>
+                        <select id="vehiculoSelect" class="form-control" required>
+                            <option value="">Seleccionar vehículo...</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="repartidorSelect">Repartidor *</label>
+                    <select id="repartidorSelect" class="form-control" required>
+                        <option value="">Seleccionar repartidor...</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="fechaEstimada">Fecha Estimada de Entrega</label>
+                    <input type="datetime-local" id="fechaEstimada" class="form-control">
+                </div>
+
+                <div class="info-pedido" id="infoPedido" style="display: none;">
+                    <h5>Información del Pedido</h5>
+                    <div class="info-content">
+                        <p><strong>Cliente:</strong> <span id="infoCliente">-</span></p>
+                        <p><strong>Dirección:</strong> <span id="infoDireccion">-</span></p>
+                        <p><strong>Productos:</strong> <span id="infoProductos">-</span></p>
+                        <p><strong>Total:</strong> <span id="infoTotal">-</span></p>
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="entregasApp.cerrarModalAsignar()">
+                Cancelar
+            </button>
+            <button type="button" class="btn btn-primary" onclick="entregasApp.asignarEntrega()">
+                <i class="fas fa-check"></i> Asignar Entrega
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Confirmar Entrega -->
+<div id="modalConfirmarEntrega" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-check-circle"></i> Confirmar Entrega</h3>
+            <button class="btn-close" onclick="entregasApp.cerrarModalConfirmar()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form id="formConfirmarEntrega">
+                <input type="hidden" id="entregaIdConfirmar">
+
+                <div class="form-group">
+                    <label for="horaReal">Hora Real de Entrega *</label>
+                    <input type="datetime-local" id="horaReal" class="form-control" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="evidencia">Evidencia (URL o descripción)</label>
+                    <textarea id="evidencia" class="form-control" rows="3"
+                        placeholder="URL de foto, firma digital, observaciones..."></textarea>
+                </div>
+
+                <div class="info-entrega">
+                    <h5>Detalles de la Entrega</h5>
+                    <div class="info-content">
+                        <p><strong>Pedido:</strong> <span id="confirmarPedido">-</span></p>
+                        <p><strong>Cliente:</strong> <span id="confirmarCliente">-</span></p>
+                        <p><strong>Dirección:</strong> <span id="confirmarDireccion">-</span></p>
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="entregasApp.cerrarModalConfirmar()">
+                Cancelar
+            </button>
+            <button type="button" class="btn btn-success" onclick="entregasApp.confirmarEntrega()">
+                <i class="fas fa-check-double"></i> Confirmar Entrega
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Reintento Entrega -->
+<div id="modalReintentoEntrega" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-redo-alt"></i> Registrar Reintento</h3>
+            <button class="btn-close" onclick="entregasApp.cerrarModalReintento()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form id="formReintentoEntrega">
+                <input type="hidden" id="entregaIdReintento">
+
+                <div class="form-group">
+                    <label for="motivoReintento">Motivo del Reintento *</label>
+                    <select id="motivoReintento" class="form-control" required>
+                        <option value="">Seleccionar motivo...</option>
+                        <option value="cliente_ausente">Cliente ausente</option>
+                        <option value="direccion_incorrecta">Dirección incorrecta</option>
+                        <option value="problema_acceso">Problema de acceso</option>
+                        <option value="cliente_rechazo">Cliente rechazó entrega</option>
+                        <option value="problema_vehiculo">Problema con vehículo</option>
+                        <option value="otro">Otro</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="observacionesReintento">Observaciones</label>
+                    <textarea id="observacionesReintento" class="form-control" rows="3"
+                        placeholder="Detalles adicionales del reintento..."></textarea>
+                </div>
+
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Límite de reintentos:</strong> Máximo 3 reintentos por entrega.
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="entregasApp.cerrarModalReintento()">
+                Cancelar
+            </button>
+            <button type="button" class="btn btn-warning" onclick="entregasApp.registrarReintento()">
+                <i class="fas fa-redo"></i> Registrar Reintento
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block js_specific %}
+<script src="{{ url_for('static', filename='js/entregas.js') }}"></script>
+{% endblock %}

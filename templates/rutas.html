@@ -1,0 +1,412 @@
+{% extends "base.html" %}
+
+{% block title %}Rutas - LUM System{% endblock %}
+
+{% block css_specific %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/rutas.css') }}">
+{% endblock %}
+
+{% block page_title %}Gestión de Rutas{% endblock %}
+
+{% block content %}
+<div class="rutas-header">
+    <div class="header-actions">
+        {% if session.user_role in ['Admin', 'Planificador'] %}
+        <button class="btn btn-primary" onclick="rutasApp.mostrarModalCrearRuta()">
+            <i class="fas fa-route"></i> Crear Nueva Ruta
+        </button>
+        {% endif %}
+        <div class="header-filters">
+            <select id="filtroEstado" class="form-control">
+                <option value="">Todos los estados</option>
+                <option value="activa">Activas</option>
+                <option value="planificada">Planificadas</option>
+                <option value="completada">Completadas</option>
+                <option value="cancelada">Canceladas</option>
+            </select>
+            <select id="filtroZona" class="form-control">
+                <option value="">Todas las zonas</option>
+            </select>
+            <input type="date" id="filtroFecha" class="form-control">
+            <button class="btn btn-outline" onclick="rutasApp.aplicarFiltros()">
+                <i class="fas fa-filter"></i> Filtrar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Estadísticas de Rutas -->
+<div class="rutas-stats">
+    <div class="stat-item">
+        <div class="stat-number" id="totalRutas">0</div>
+        <div class="stat-label">Total Rutas</div>
+    </div>
+    <div class="stat-item">
+        <div class="stat-number" id="rutasActivas">0</div>
+        <div class="stat-label">Activas Hoy</div>
+    </div>
+    <div class="stat-item">
+        <div class="stat-number" id="entregasPlanificadas">0</div>
+        <div class="stat-label">Entregas Planificadas</div>
+    </div>
+    <div class="stat-item">
+        <div class="stat-number" id="kmTotales">0 km</div>
+        <div class="stat-label">Distancia Total</div>
+    </div>
+    <div class="stat-item">
+        <div class="stat-number" id="eficienciaPromedio">0%</div>
+        <div class="stat-label">Eficiencia Promedio</div>
+    </div>
+</div>
+
+<!-- Mapa de Rutas -->
+<div class="mapa-rutas">
+    <div class="mapa-header">
+        <h4><i class="fas fa-map-marked-alt"></i> Mapa de Rutas Activas</h4>
+        <div class="mapa-controls">
+            <button class="btn btn-outline btn-sm" onclick="rutasApp.actualizarMapa()">
+                <i class="fas fa-sync-alt"></i> Actualizar
+            </button>
+            <button class="btn btn-outline btn-sm" onclick="rutasApp.mostrarTodasRutas()">
+                <i class="fas fa-eye"></i> Ver Todas
+            </button>
+        </div>
+    </div>
+    <div class="mapa-placeholder" id="mapaRutas">
+        <i class="fas fa-route"></i>
+        <p>Visualización de rutas en el mapa</p>
+        <small>Las rutas activas se muestran con diferentes colores</small>
+    </div>
+</div>
+
+<!-- Lista de Rutas -->
+<div class="rutas-container">
+    <div class="table-responsive">
+        <table class="table rutas-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Nombre</th>
+                    <th>Zona</th>
+                    <th>Fecha</th>
+                    <th>Repartidor</th>
+                    <th>Vehículo</th>
+                    <th>Paradas</th>
+                    <th>Distancia</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="tablaRutas">
+                <tr>
+                    <td colspan="10" class="text-center">
+                        <div class="loading-spinner">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <span>Cargando rutas...</span>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Paginación -->
+<div class="pagination-container">
+    <div class="pagination-info">
+        Mostrando <span id="mostrandoDesde">0</span>-<span id="mostrandoHasta">0</span> de <span
+            id="totalRegistros">0</span> rutas
+    </div>
+    <div class="pagination-controls">
+        <button class="btn-pagination" id="btnAnterior" disabled>
+            <i class="fas fa-chevron-left"></i> Anterior
+        </button>
+        <div class="pagination-numbers" id="paginationNumbers"></div>
+        <button class="btn-pagination" id="btnSiguiente" disabled>
+            Siguiente <i class="fas fa-chevron-right"></i>
+        </button>
+    </div>
+</div>
+
+<!-- Modal Crear Ruta -->
+<div id="modalCrearRuta" class="modal">
+    <div class="modal-content modal-lg">
+        <div class="modal-header">
+            <h3><i class="fas fa-route"></i> Crear Nueva Ruta</h3>
+            <button class="btn-close" onclick="rutasApp.cerrarModalCrear()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form id="formCrearRuta">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="nombreRuta">Nombre de la Ruta *</label>
+                        <input type="text" id="nombreRuta" class="form-control" placeholder="Ej: Ruta Norte - Mañana"
+                            required>
+                    </div>
+                    <div class="form-group">
+                        <label for="zonaRuta">Zona *</label>
+                        <select id="zonaRuta" class="form-control" required>
+                            <option value="">Seleccionar zona...</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="fechaRuta">Fecha de Ejecución *</label>
+                        <input type="date" id="fechaRuta" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="repartidorRuta">Repartidor *</label>
+                        <select id="repartidorRuta" class="form-control" required>
+                            <option value="">Seleccionar repartidor...</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="vehiculoRuta">Vehículo *</label>
+                        <select id="vehiculoRuta" class="form-control" required>
+                            <option value="">Seleccionar vehículo...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="estadoRuta">Estado Inicial</label>
+                        <select id="estadoRuta" class="form-control">
+                            <option value="1">Planificada</option>
+                            <option value="2">Activa</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Selector de Pedidos -->
+                <div class="pedidos-container">
+                    <div class="pedidos-header">
+                        <h5><i class="fas fa-boxes"></i> Seleccionar Pedidos para la Ruta</h5>
+                        <div class="pedidos-actions">
+                            <button type="button" class="btn btn-outline btn-sm"
+                                onclick="rutasApp.cargarPedidosDisponibles()">
+                                <i class="fas fa-sync-alt"></i> Actualizar
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="pedidos-filters">
+                        <input type="text" id="buscarPedidos" class="form-control"
+                            placeholder="Buscar pedidos por cliente o dirección...">
+                    </div>
+
+                    <div class="pedidos-list-container">
+                        <div class="pedidos-disponibles">
+                            <h6>Pedidos Disponibles</h6>
+                            <div class="pedidos-list" id="listaPedidosDisponibles">
+                                <!-- Pedidos disponibles se cargan aquí -->
+                            </div>
+                        </div>
+
+                        <div class="pedidos-seleccionados">
+                            <h6>Pedidos en Ruta <span class="badge" id="contadorPedidos">0</span></h6>
+                            <div class="pedidos-list" id="listaPedidosSeleccionados">
+                                <!-- Pedidos seleccionados se muestran aquí -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="secuencia-info">
+                        <small><i class="fas fa-info-circle"></i> Arrastra los pedidos para definir el orden de
+                            entrega</small>
+                    </div>
+                </div>
+
+                <div class="resumen-ruta" id="resumenRuta" style="display: none;">
+                    <h5><i class="fas fa-chart-line"></i> Resumen de la Ruta</h5>
+                    <div class="resumen-grid">
+                        <div class="resumen-item">
+                            <label>Total Pedidos:</label>
+                            <span id="resumenTotalPedidos">0</span>
+                        </div>
+                        <div class="resumen-item">
+                            <label>Distancia Estimada:</label>
+                            <span id="resumenDistancia">0 km</span>
+                        </div>
+                        <div class="resumen-item">
+                            <label>Tiempo Estimado:</label>
+                            <span id="resumenTiempo">0 min</span>
+                        </div>
+                        <div class="resumen-item">
+                            <label>Eficiencia Estimada:</label>
+                            <span id="resumenEficiencia">0%</span>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="rutasApp.cerrarModalCrear()">
+                Cancelar
+            </button>
+            <button type="button" class="btn btn-primary" onclick="rutasApp.crearRuta()">
+                <i class="fas fa-save"></i> Crear Ruta
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Detalles Ruta -->
+<div id="modalDetallesRuta" class="modal">
+    <div class="modal-content modal-lg">
+        <div class="modal-header">
+            <h3><i class="fas fa-info-circle"></i> Detalles de Ruta</h3>
+            <button class="btn-close" onclick="rutasApp.cerrarModalDetalles()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="detalles-ruta">
+                <div class="detalles-header">
+                    <div class="ruta-info">
+                        <h4 id="detalleNombreRuta">-</h4>
+                        <div class="ruta-meta">
+                            <span class="estado-badge" id="detalleEstadoRuta">-</span>
+                            <span class="fecha-ruta" id="detalleFechaRuta">-</span>
+                        </div>
+                    </div>
+                    <div class="ruta-stats">
+                        <div class="stat-mini">
+                            <div class="stat-value" id="detalleTotalParadas">0</div>
+                            <div class="stat-label">Paradas</div>
+                        </div>
+                        <div class="stat-mini">
+                            <div class="stat-value" id="detalleDistancia">0 km</div>
+                            <div class="stat-label">Distancia</div>
+                        </div>
+                        <div class="stat-mini">
+                            <div class="stat-value" id="detalleEficiencia">0%</div>
+                            <div class="stat-label">Eficiencia</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="detalles-content">
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <label><i class="fas fa-user"></i> Repartidor:</label>
+                            <span id="detalleRepartidor">-</span>
+                        </div>
+                        <div class="info-item">
+                            <label><i class="fas fa-truck"></i> Vehículo:</label>
+                            <span id="detalleVehiculo">-</span>
+                        </div>
+                        <div class="info-item">
+                            <label><i class="fas fa-map-marker-alt"></i> Zona:</label>
+                            <span id="detalleZona">-</span>
+                        </div>
+                        <div class="info-item">
+                            <label><i class="fas fa-clock"></i> Hora Inicio:</label>
+                            <span id="detalleHoraInicio">-</span>
+                        </div>
+                    </div>
+
+                    <!-- Secuencia de Paradas -->
+                    <div class="secuencia-paradas">
+                        <h5><i class="fas fa-list-ol"></i> Secuencia de Paradas</h5>
+                        <div class="paradas-list" id="listaParadas">
+                            <!-- Paradas se cargan aquí -->
+                        </div>
+                    </div>
+
+                    <!-- Mapa de la Ruta -->
+                    <div class="mapa-mini">
+                        <h5><i class="fas fa-route"></i> Mapa de la Ruta</h5>
+                        <div class="mapa-placeholder-mini">
+                            <i class="fas fa-map"></i>
+                            <p>Visualización del recorrido</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="rutasApp.cerrarModalDetalles()">
+                Cerrar
+            </button>
+            {% if session.user_role in ['Admin', 'Planificador'] %}
+            <button type="button" class="btn btn-warning" onclick="rutasApp.mostrarModalEditar()">
+                <i class="fas fa-edit"></i> Editar Ruta
+            </button>
+            <button type="button" class="btn btn-success" onclick="rutasApp.iniciarRuta()">
+                <i class="fas fa-play"></i> Iniciar Ruta
+            </button>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Modal Editar Ruta -->
+<div id="modalEditarRuta" class="modal">
+    <div class="modal-content modal-lg">
+        <div class="modal-header">
+            <h3><i class="fas fa-edit"></i> Editar Ruta</h3>
+            <button class="btn-close" onclick="rutasApp.cerrarModalEditar()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form id="formEditarRuta">
+                <input type="hidden" id="rutaIdEditar">
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="editarNombreRuta">Nombre de la Ruta</label>
+                        <input type="text" id="editarNombreRuta" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="editarEstadoRuta">Estado</label>
+                        <select id="editarEstadoRuta" class="form-control">
+                            <option value="1">Planificada</option>
+                            <option value="2">Activa</option>
+                            <option value="3">Completada</option>
+                            <option value="4">Cancelada</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="editarRepartidor">Repartidor</label>
+                        <select id="editarRepartidor" class="form-control">
+                            <option value="">Seleccionar repartidor...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="editarVehiculo">Vehículo</label>
+                        <select id="editarVehiculo" class="form-control">
+                            <option value="">Seleccionar vehículo...</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>Nota:</strong> Los cambios en la secuencia de pedidos requieren recálculo de la ruta.
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="rutasApp.cerrarModalEditar()">
+                Cancelar
+            </button>
+            <button type="button" class="btn btn-primary" onclick="rutasApp.actualizarRuta()">
+                <i class="fas fa-check"></i> Actualizar Ruta
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block js_specific %}
+<script src="{{ url_for('static', filename='js/rutas.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,363 @@
+{% extends "base.html" %}
+
+{% block title %}Incidencias - LUM System{% endblock %}
+
+{% block css_specific %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/incidencias.css') }}">
+{% endblock %}
+
+{% block page_title %}Gestión de Incidencias{% endblock %}
+
+{% block content %}
+<div class="incidencias-header">
+    <div class="header-actions">
+        <button class="btn btn-primary" onclick="incidenciasApp.mostrarModalRegistrar()">
+            <i class="fas fa-exclamation-triangle"></i> Registrar Incidencia
+        </button>
+        <div class="header-filters">
+            <select id="filtroEstado" class="form-control">
+                <option value="">Todos los estados</option>
+                <option value="activa">Activas</option>
+                <option value="resuelta">Resueltas</option>
+                <option value="monitoreo">En Monitoreo</option>
+            </select>
+            <select id="filtroTipo" class="form-control">
+                <option value="">Todos los tipos</option>
+                <option value="bloqueo_vial">Bloqueo Vial</option>
+                <option value="clima">Condiciones Climáticas</option>
+                <option value="vehiculo">Problema Vehicular</option>
+                <option value="seguridad">Problema de Seguridad</option>
+                <option value="otro">Otro</option>
+            </select>
+            <select id="filtroImpacto" class="form-control">
+                <option value="">Todos los impactos</option>
+                <option value="alto">Alto Impacto</option>
+                <option value="medio">Impacto Medio</option>
+                <option value="bajo">Bajo Impacto</option>
+            </select>
+            <button class="btn btn-outline" onclick="incidenciasApp.aplicarFiltros()">
+                <i class="fas fa-filter"></i> Filtrar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Alertas de Incidencias Activas -->
+<div class="alertas-container" id="alertasContainer" style="display: none;">
+    <div class="alerta-header">
+        <h4><i class="fas fa-bell"></i> Alertas Activas</h4>
+        <span class="badge bg-danger" id="contadorAlertas">0</span>
+    </div>
+    <div class="alertas-list" id="alertasList">
+        <!-- Las alertas se cargan dinámicamente -->
+    </div>
+</div>
+
+<!-- Estadísticas de Incidencias -->
+<div class="incidencias-stats">
+    <div class="stat-item">
+        <div class="stat-number" id="totalIncidencias">0</div>
+        <div class="stat-label">Total Incidencias</div>
+    </div>
+    <div class="stat-item">
+        <div class="stat-number" id="incidenciasActivas">0</div>
+        <div class="stat-label">Activas</div>
+    </div>
+    <div class="stat-item">
+        <div class="stat-number" id="incidenciasAltas">0</div>
+        <div class="stat-label">Alto Impacto</div>
+    </div>
+    <div class="stat-item">
+        <div class="stat-number" id="promedioResolucion">0h</div>
+        <div class="stat-label">Tiempo Promedio Resolución</div>
+    </div>
+</div>
+
+<!-- Mapa de Incidencias -->
+<div class="mapa-incidencias">
+    <div class="mapa-header">
+        <h4><i class="fas fa-map-marked-alt"></i> Mapa de Incidencias</h4>
+        <div class="mapa-legend">
+            <div class="legend-item">
+                <span class="legend-color alto-impacto"></span>
+                Alto Impacto
+            </div>
+            <div class="legend-item">
+                <span class="legend-color medio-impacto"></span>
+                Impacto Medio
+            </div>
+            <div class="legend-item">
+                <span class="legend-color bajo-impacto"></span>
+                Bajo Impacto
+            </div>
+        </div>
+    </div>
+    <div class="mapa-placeholder" id="mapaIncidencias">
+        <i class="fas fa-map"></i>
+        <p>Mapa de incidencias en tiempo real</p>
+        <small>Las incidencias activas se muestran según su nivel de impacto</small>
+    </div>
+</div>
+
+<!-- Lista de Incidencias -->
+<div class="incidencias-container">
+    <div class="table-responsive">
+        <table class="table incidencias-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Tipo</th>
+                    <th>Descripción</th>
+                    <th>Zona</th>
+                    <th>Fecha Inicio</th>
+                    <th>Fecha Fin</th>
+                    <th>Impacto</th>
+                    <th>Estado</th>
+                    <th>Reportada Por</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="tablaIncidencias">
+                <tr>
+                    <td colspan="10" class="text-center">
+                        <div class="loading-spinner">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <span>Cargando incidencias...</span>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Paginación -->
+<div class="pagination-container">
+    <div class="pagination-info">
+        Mostrando <span id="mostrandoDesde">0</span>-<span id="mostrandoHasta">0</span> de <span
+            id="totalRegistros">0</span> incidencias
+    </div>
+    <div class="pagination-controls">
+        <button class="btn-pagination" id="btnAnterior" disabled>
+            <i class="fas fa-chevron-left"></i> Anterior
+        </button>
+        <div class="pagination-numbers" id="paginationNumbers"></div>
+        <button class="btn-pagination" id="btnSiguiente" disabled>
+            Siguiente <i class="fas fa-chevron-right"></i>
+        </button>
+    </div>
+</div>
+
+<!-- Modal Registrar Incidencia -->
+<div id="modalRegistrarIncidencia" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-exclamation-triangle"></i> Registrar Incidencia</h3>
+            <button class="btn-close" onclick="incidenciasApp.cerrarModalRegistrar()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form id="formRegistrarIncidencia">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="tipoIncidencia">Tipo de Incidencia *</label>
+                        <select id="tipoIncidencia" class="form-control" required>
+                            <option value="">Seleccionar tipo...</option>
+                            <option value="1">Bloqueo Vial</option>
+                            <option value="2">Condiciones Climáticas</option>
+                            <option value="3">Problema Vehicular</option>
+                            <option value="4">Problema de Seguridad</option>
+                            <option value="5">Otro</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="nivelImpacto">Nivel de Impacto *</label>
+                        <select id="nivelImpacto" class="form-control" required>
+                            <option value="">Seleccionar impacto...</option>
+                            <option value="1">Bajo</option>
+                            <option value="2">Medio</option>
+                            <option value="3">Alto</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="zonaIncidencia">Zona Afectada *</label>
+                    <select id="zonaIncidencia" class="form-control" required>
+                        <option value="">Seleccionar zona...</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="descripcionIncidencia">Descripción *</label>
+                    <textarea id="descripcionIncidencia" class="form-control" rows="4"
+                        placeholder="Describa la incidencia en detalle..." required></textarea>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="fechaInicio">Fecha y Hora de Inicio *</label>
+                        <input type="datetime-local" id="fechaInicio" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="fechaFin">Fecha y Hora de Fin Estimada</label>
+                        <input type="datetime-local" id="fechaFin" class="form-control">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="observacionesIncidencia">Observaciones Adicionales</label>
+                    <textarea id="observacionesIncidencia" class="form-control" rows="3"
+                        placeholder="Información adicional, coordenadas, referencias..."></textarea>
+                </div>
+
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>Importante:</strong> Las incidencias de alto impacto notificarán automáticamente a todos los
+                    repartidores en la zona afectada.
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="incidenciasApp.cerrarModalRegistrar()">
+                Cancelar
+            </button>
+            <button type="button" class="btn btn-primary" onclick="incidenciasApp.registrarIncidencia()">
+                <i class="fas fa-save"></i> Registrar Incidencia
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Detalles Incidencia -->
+<div id="modalDetallesIncidencia" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-info-circle"></i> Detalles de Incidencia</h3>
+            <button class="btn-close" onclick="incidenciasApp.cerrarModalDetalles()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="detalles-grid">
+                <div class="detalle-item">
+                    <label>ID de Incidencia:</label>
+                    <span id="detalleId">-</span>
+                </div>
+                <div class="detalle-item">
+                    <label>Tipo:</label>
+                    <span id="detalleTipo">-</span>
+                </div>
+                <div class="detalle-item">
+                    <label>Estado:</label>
+                    <span id="detalleEstado">-</span>
+                </div>
+                <div class="detalle-item">
+                    <label>Nivel de Impacto:</label>
+                    <span id="detalleImpacto">-</span>
+                </div>
+                <div class="detalle-item">
+                    <label>Zona Afectada:</label>
+                    <span id="detalleZona">-</span>
+                </div>
+                <div class="detalle-item">
+                    <label>Fecha de Inicio:</label>
+                    <span id="detalleFechaInicio">-</span>
+                </div>
+                <div class="detalle-item">
+                    <label>Fecha de Fin:</label>
+                    <span id="detalleFechaFin">-</span>
+                </div>
+                <div class="detalle-item">
+                    <label>Reportada Por:</label>
+                    <span id="detalleReportadaPor">-</span>
+                </div>
+                <div class="detalle-item full-width">
+                    <label>Descripción:</label>
+                    <p id="detalleDescripcion">-</p>
+                </div>
+                <div class="detalle-item full-width">
+                    <label>Observaciones:</label>
+                    <p id="detalleObservaciones">-</p>
+                </div>
+            </div>
+
+            <!-- Historial de Actualizaciones -->
+            <div class="historial-container">
+                <h5><i class="fas fa-history"></i> Historial de Actualizaciones</h5>
+                <div class="historial-list" id="historialList">
+                    <div class="historial-item">
+                        <div class="historial-fecha">2024-01-15 10:30:00</div>
+                        <div class="historial-descripcion">Incidencia registrada</div>
+                        <div class="historial-usuario">Admin Sistema</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="incidenciasApp.cerrarModalDetalles()">
+                Cerrar
+            </button>
+            <button type="button" class="btn btn-warning" onclick="incidenciasApp.mostrarModalActualizar()">
+                <i class="fas fa-edit"></i> Actualizar Estado
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Actualizar Incidencia -->
+<div id="modalActualizarIncidencia" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-edit"></i> Actualizar Incidencia</h3>
+            <button class="btn-close" onclick="incidenciasApp.cerrarModalActualizar()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form id="formActualizarIncidencia">
+                <input type="hidden" id="incidenciaIdActualizar">
+
+                <div class="form-group">
+                    <label for="estadoIncidencia">Estado *</label>
+                    <select id="estadoIncidencia" class="form-control" required>
+                        <option value="1">Activa</option>
+                        <option value="2">En Monitoreo</option>
+                        <option value="3">Resuelta</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="comentarioActualizacion">Comentario de Actualización *</label>
+                    <textarea id="comentarioActualizacion" class="form-control" rows="3"
+                        placeholder="Describa los avances o cambios en la situación..." required></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="fechaResolucion">Fecha de Resolución</label>
+                    <input type="datetime-local" id="fechaResolucion" class="form-control">
+                </div>
+
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Nota:</strong> Al marcar como "Resuelta", se notificará a los repartidores que la incidencia
+                    ha sido solucionada.
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="incidenciasApp.cerrarModalActualizar()">
+                Cancelar
+            </button>
+            <button type="button" class="btn btn-primary" onclick="incidenciasApp.actualizarIncidencia()">
+                <i class="fas fa-check"></i> Actualizar Incidencia
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block js_specific %}
+<script src="{{ url_for('static', filename='js/incidencias.js') }}"></script>
+{% endblock %}
