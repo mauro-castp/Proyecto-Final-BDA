@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}LUM System{% endblock %}</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+    {% block css_specific %}{% endblock %}
+</head>
+
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h2>LUM System</h2>
+            <div class="role">{{ session.user_role }}</div>
+        </div>
+        <ul class="nav-links">
+            <li><a href="{{ url_for('index') }}" {% if request.endpoint=='index' %}class="active" {% endif %}>
+                    <i class="fas fa-home"></i> <span>Inicio</span>
+                </a></li>
+            <li><a href="{{ url_for('dashboard_page') }}" {% if request.endpoint=='dashboard_page' %}class="active" {%
+                    endif %}>
+                    <i class="fas fa-chart-line"></i> <span>dashboard</span>
+                </a></li>
+            <li><a href="{{ url_for('pedidos_page') }}" {% if request.endpoint=='pedidos_page' %}class="active" {% endif
+                    %}>
+                    <i class="fas fa-shopping-cart"></i> <span>Pedidos</span>
+                </a></li>
+            <li><a href="{{ url_for('entregas_page') }}" {% if request.endpoint=='entregas_page' %}class="active" {%
+                    endif %}>
+                    <i class="fas fa-truck"></i> <span>Entregas</span>
+                </a></li>
+            <li><a href="{{ url_for('rutas_page') }}" {% if request.endpoint=='rutas_page' %}class="active" {% endif %}>
+                    <i class="fas fa-route"></i> <span>Rutas</span>
+                </a></li>
+            <li><a href="{{ url_for('reportes_page') }}" {% if request.endpoint=='reportes_page' %}class="active" {%
+                    endif %}>
+                    <i class="fas fa-chart-bar"></i> <span>Reportes</span>
+                </a></li>
+            <li><a href="{{ url_for('incidencias_page') }}" {% if request.endpoint=='incidencias_page' %}class="active"
+                    {% endif %}>
+                    <i class="fas fa-exclamation-triangle"></i> <span>Incidencias</span>
+                </a></li>
+        </ul>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="header">
+            <h1>{% block page_title %}LUM System{% endblock %}</h1>
+            <div class="user-info">
+                <span>Hola, <strong>{{ session.user_name }}</strong></span>
+                <a href="{{ url_for('logout') }}" class="btn-logout">
+                    <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+                </a>
+            </div>
+        </div>
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="flash-messages">
+            {% for category, message in messages %}
+            <div class="alert {{ category }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        <!-- Content Block -->
+        <div class="content">
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="{{ url_for('static', filename='js/base.js') }}"></script>
+    {% block js_specific %}{% endblock %}
+</body>
+
+</html>
