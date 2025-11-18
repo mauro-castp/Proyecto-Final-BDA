@@ -1,0 +1,35 @@
+DELIMITER //
+CREATE PROCEDURE entregaAsignar(
+    IN p_id_pedido INT,
+    IN p_id_ruta INT,
+    IN p_id_vehiculo INT,
+    IN p_id_repartidor INT
+)
+BEGIN
+    DECLARE v_peso DECIMAL(10,2);
+    DECLARE v_vol DECIMAL(10,4);
+    DECLARE v_cap_peso DECIMAL(10,2);
+    DECLARE v_cap_vol DECIMAL(10,2);
+
+    SELECT peso_kg, volumen_m3 INTO v_cap_peso, v_cap_vol
+    FROM tipos_vehiculo tv
+    JOIN vehiculos v ON v.id_tipo_vehiculo = tv.id_tipo_vehiculo
+    WHERE v.id_vehiculo = p_id_vehiculo;
+
+    SELECT peso_total, volumen_total INTO v_peso, v_vol
+    FROM pedidos
+    WHERE id_pedido = p_id_pedido;
+
+    IF v_peso > v_cap_peso OR v_vol > v_cap_vol THEN
+        SELECT 'capacidad_insuficiente' AS status;
+        LEAVE BEGIN;
+    END IF;
+
+    INSERT INTO entregas(
+        id_pedido, id_ruta, id_repartidor, id_estado_entrega, fecha_estimada_entrega
+    )
+    VALUES(p_id_pedido, p_id_ruta, p_id_repartidor, 1, NOW());
+
+    SELECT LAST_INSERT_ID() AS id_entrega;
+END //
+DELIMITER ;
