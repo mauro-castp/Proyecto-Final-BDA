@@ -11,9 +11,9 @@ app = Flask(__name__)
 # Configuración
 app.secret_key = 'clave-secreta-lum-2024-desarrollo'
 app.config['MYSQL_HOST'] = 'localhost'
-app.config['MYSQL_USER'] = 'lum_user'
+app.config['MYSQL_USER'] = 'proyecto_user'
 app.config['MYSQL_PASSWORD'] = '666'
-app.config['MYSQL_DB'] = 'LUM'
+app.config['MYSQL_DB'] = 'proyecto'
 app.config['MYSQL_CURSORCLASS'] = 'DictCursor'
 
 # Configuración Swagger MEJORADA
