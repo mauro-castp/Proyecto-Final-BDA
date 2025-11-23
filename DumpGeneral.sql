@@ -287,7 +287,7 @@ CREATE TABLE `entregas` (
   `id_estado_entrega` int(11) NOT NULL,
   `fecha_estimada_entrega` timestamp NULL DEFAULT NULL,
   `hora_inicio_entrega` timestamp NULL DEFAULT NULL,
-  `hora_fin_entrega` timestamp NULL DEFAULT NULL,
+  `fecha_fin_entrega` timestamp NULL DEFAULT NULL,
   `tiempo_entrega_minutos` int(11) DEFAULT 0,
   `reintentos` int(11) DEFAULT 0,
   `cumplio_sla` tinyint(1) DEFAULT 0,
