@@ -13,18 +13,21 @@ BEGIN
     IF p_id_cliente IS NULL THEN
         INSERT INTO clientes(nombre, telefono, email, id_estado)
         VALUES(p_nombre, p_telefono, p_email, 1);
-
+        
         SET p_id_cliente = LAST_INSERT_ID();
 
         INSERT INTO direcciones_cliente(id_cliente, direccion, id_zona, id_estado)
         VALUES(p_id_cliente, p_direccion, p_id_zona, 1);
     ELSE
         UPDATE clientes
-        SET nombre = p_nombre, telefono = p_telefono, email = p_email
+        SET nombre = p_nombre,
+            telefono = p_telefono,
+            email = p_email
         WHERE id_cliente = p_id_cliente;
 
         UPDATE direcciones_cliente
-        SET direccion = p_direccion, id_zona = p_id_zona
+        SET direccion = p_direccion,
+            id_zona = p_id_zona
         WHERE id_cliente = p_id_cliente;
     END IF;
 
