@@ -1,6 +1,7 @@
 -- -----------------------------------------------------
 -- Triggers de Auditoría para la tabla `pedidos`
 -- -----------------------------------------------------
+DELIMITER $$
 CREATE TRIGGER pedidos_ai
 AFTER INSERT ON pedidos
 FOR EACH ROW
@@ -19,6 +20,9 @@ BEGIN
         CURRENT_USER(), NOW()
     );
 END$$ 
+DELIMITER ;
+
+DELIMITER $$
 CREATE TRIGGER pedidos_au
 AFTER UPDATE ON pedidos
 FOR EACH ROW
@@ -44,6 +48,9 @@ BEGIN
         CURRENT_USER(), NOW()
     );
 END$$ 
+DELIMITER ;
+
+DELIMITER $$
 CREATE TRIGGER pedidos_ad
 AFTER DELETE ON pedidos
 FOR EACH ROW
@@ -62,10 +69,12 @@ BEGIN
         NULL, CURRENT_USER(), NOW()
     );
 END$$ 
+DELIMITER ;
 
 -- -----------------------------------------------------
 -- Triggers de Auditoría para la tabla `rutas`
 -- -----------------------------------------------------
+DELIMITER $$
 CREATE TRIGGER rutas_ai
 AFTER INSERT ON rutas
 FOR EACH ROW
@@ -82,6 +91,9 @@ BEGIN
         CURRENT_USER(), NOW()
     );
 END$$ 
+DELIMITER ;
+
+DELIMITER $$
 CREATE TRIGGER rutas_au
 AFTER UPDATE ON rutas
 FOR EACH ROW
@@ -103,6 +115,9 @@ BEGIN
         CURRENT_USER(), NOW()
     );
 END$$ 
+DELIMITER ;
+
+DELIMITER $$
 CREATE TRIGGER rutas_ad
 AFTER DELETE ON rutas
 FOR EACH ROW
@@ -119,10 +134,11 @@ BEGIN
         NULL, CURRENT_USER(), NOW()
     );
 END$$ 
-
+DELIMITER ;
 -- -----------------------------------------------------
 -- Triggers de Auditoría para la tabla `entregas`
 -- -----------------------------------------------------
+DELIMITER $$
 CREATE TRIGGER entregas_ai
 AFTER INSERT ON entregas
 FOR EACH ROW
@@ -134,7 +150,7 @@ BEGIN
         JSON_OBJECT(
             'id_pedido', NEW.id_pedido, 'id_ruta', NEW.id_ruta, 'id_repartidor', NEW.id_repartidor,
             'id_estado_entrega', NEW.id_estado_entrega, 'fecha_estimada_entrega', NEW.fecha_estimada_entrega,
-            'hora_inicio_entrega', NEW.hora_inicio_entrega, 'fecha_fin_entrega', NEW.fecha_fin_entrega,
+            'hora_inicio_entrega', NEW.hora_inicio_entrega, 'fecha_fin_entrega', NEW.fecha_real_entrega,
             'tiempo_entrega_minutos', NEW.tiempo_entrega_minutos, 'reintentos', NEW.reintentos,
             'cumplio_sla', NEW.cumplio_sla, 'fue_tarde', NEW.fue_tarde, 'costo_entrega', NEW.costo_entrega,
             'id_motivo_fallo', NEW.id_motivo_fallo
@@ -142,6 +158,9 @@ BEGIN
         CURRENT_USER(), NOW()
     );
 END$$ 
+DELIMITER ;
+
+DELIMITER $$
 CREATE TRIGGER entregas_au
 AFTER UPDATE ON entregas
 FOR EACH ROW
@@ -153,7 +172,7 @@ BEGIN
         JSON_OBJECT(
             'id_pedido', OLD.id_pedido, 'id_ruta', OLD.id_ruta, 'id_repartidor', OLD.id_repartidor,
             'id_estado_entrega', OLD.id_estado_entrega, 'fecha_estimada_entrega', OLD.fecha_estimada_entrega,
-            'hora_inicio_entrega', OLD.hora_inicio_entrega, 'fecha_fin_entrega', OLD.fecha_fin_entrega,
+            'hora_inicio_entrega', OLD.hora_inicio_entrega, 'fecha_fin_entrega', OLD.fecha_real_entrega,
             'tiempo_entrega_minutos', OLD.tiempo_entrega_minutos, 'reintentos', OLD.reintentos,
             'cumplio_sla', OLD.cumplio_sla, 'fue_tarde', OLD.fue_tarde, 'costo_entrega', OLD.costo_entrega,
             'id_motivo_fallo', OLD.id_motivo_fallo
@@ -161,7 +180,7 @@ BEGIN
         JSON_OBJECT(
             'id_pedido', NEW.id_pedido, 'id_ruta', NEW.id_ruta, 'id_repartidor', NEW.id_repartidor,
             'id_estado_entrega', NEW.id_estado_entrega, 'fecha_estimada_entrega', NEW.fecha_estimada_entrega,
-            'hora_inicio_entrega', NEW.hora_inicio_entrega, 'fecha_fin_entrega', NEW.fecha_fin_entrega,
+            'hora_inicio_entrega', NEW.hora_inicio_entrega, 'fecha_fin_entrega', NEW.fecha_real_entrega,
             'tiempo_entrega_minutos', NEW.tiempo_entrega_minutos, 'reintentos', NEW.reintentos,
             'cumplio_sla', NEW.cumplio_sla, 'fue_tarde', NEW.fue_tarde, 'costo_entrega', NEW.costo_entrega,
             'id_motivo_fallo', NEW.id_motivo_fallo
@@ -169,6 +188,9 @@ BEGIN
         CURRENT_USER(), NOW()
     );
 END$$ 
+DELIMITER ;
+
+DELIMITER $$
 CREATE TRIGGER entregas_ad
 AFTER DELETE ON entregas
 FOR EACH ROW
@@ -180,7 +202,7 @@ BEGIN
         JSON_OBJECT(
             'id_pedido', OLD.id_pedido, 'id_ruta', OLD.id_ruta, 'id_repartidor', OLD.id_repartidor,
             'id_estado_entrega', OLD.id_estado_entrega, 'fecha_estimada_entrega', OLD.fecha_estimada_entrega,
-            'hora_inicio_entrega', OLD.hora_inicio_entrega, 'fecha_fin_entrega', OLD.fecha_fin_entrega,
+            'hora_inicio_entrega', OLD.hora_inicio_entrega, 'fecha_fin_entrega', OLD.fecha_real_entrega,
             'tiempo_entrega_minutos', OLD.tiempo_entrega_minutos, 'reintentos', OLD.reintentos,
             'cumplio_sla', OLD.cumplio_sla, 'fue_tarde', OLD.fue_tarde, 'costo_entrega', OLD.costo_entrega,
             'id_motivo_fallo', OLD.id_motivo_fallo
@@ -188,10 +210,12 @@ BEGIN
         NULL, CURRENT_USER(), NOW()
     );
 END$$ 
+DELIMITER ;
 
 -- -----------------------------------------------------
 -- Triggers de Auditoría para la tabla `incidencias`
 -- -----------------------------------------------------
+DELIMITER $$
 CREATE TRIGGER incidencias_ai
 AFTER INSERT ON incidencias
 FOR EACH ROW
@@ -209,6 +233,9 @@ BEGIN
         CURRENT_USER(), NOW()
     );
 END$$ 
+DELIMITER ;
+
+DELIMITER $$
 CREATE TRIGGER incidencias_au
 AFTER UPDATE ON incidencias
 FOR EACH ROW
@@ -232,6 +259,9 @@ BEGIN
         CURRENT_USER(), NOW()
     );
 END$$ 
+DELIMITER ;
+
+DELIMITER $$
 CREATE TRIGGER incidencias_ad
 AFTER DELETE ON incidencias
 FOR EACH ROW
@@ -249,12 +279,14 @@ BEGIN
         NULL, CURRENT_USER(), NOW()
     );
 END$$ 
+DELIMITER ;
 
 -- -----------------------------------------------------
 -- Trigger: detallePedidoValidacionBI
 -- Tabla: detalle_pedido
 -- Propósito: Valida que la cantidad sea > 0 y el producto exista.
 -- -----------------------------------------------------
+DELIMITER $$
 CREATE TRIGGER detallePedidoValidacionBI
 BEFORE INSERT ON detalle_pedido
 FOR EACH ROW
@@ -266,6 +298,9 @@ BEGIN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Error de validación: El ID de producto especificado no es válido.';
     END IF;
 END$$ 
+DELIMITER ;
+
+DELIMITER $$
 CREATE TRIGGER detallePedidoValidacionBU
 BEFORE UPDATE ON detalle_pedido
 FOR EACH ROW
@@ -277,12 +312,13 @@ BEGIN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Error de validación: El ID de producto especificado no es válido.';
     END IF;
 END$$ 
-
+DELIMITER ;
 -- -----------------------------------------------------
 -- Trigger: entregaEstadoBU
 -- Tabla: entregas
 -- Propósito: Controla que las transiciones de estado sean lógicas.
 -- -----------------------------------------------------
+DELIMITER $$
 CREATE TRIGGER entregaEstadoBU
 BEFORE UPDATE ON entregas
 FOR EACH ROW
@@ -308,12 +344,14 @@ BEGIN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Error de validación: Desde "en destino" solo se puede pasar a "entregada", "fallida" o "reprogramada".';
     END IF;
 END$$ 
+DELIMITER ;
 
 -- -----------------------------------------------------
 -- Trigger: vehiculoCapacidadBI
 -- Tabla: paradas_ruta
 -- Propósito: Evita sobrecargar un vehículo más allá de su capacidad.
 -- -----------------------------------------------------
+DELIMITER $$
 CREATE TRIGGER vehiculoCapacidadBI
 BEFORE INSERT ON paradas_ruta
 FOR EACH ROW
@@ -344,6 +382,9 @@ BEGIN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Error de validación: El pedido excede la capacidad de volumen del vehículo para esta ruta.';
     END IF;
 END$$ 
+DELIMITER ;
+
+DELIMITER $$
 CREATE TRIGGER vehiculoCapacidadBU
 BEFORE UPDATE ON paradas_ruta
 FOR EACH ROW
@@ -374,12 +415,14 @@ BEGIN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Error de validación: El pedido excede la capacidad de volumen del vehículo para esta ruta.';
     END IF;
 END$$ 
+DELIMITER ;
 
 -- -----------------------------------------------------
 -- Trigger: incidenciaBloqueoBI
 -- Tabla: incidencias
 -- Propósito: Evita solapes de incidencias activas en la misma zona.
 -- -----------------------------------------------------
+DELIMITER $$
 CREATE TRIGGER incidenciaBloqueoBI
 BEFORE INSERT ON incidencias
 FOR EACH ROW
@@ -392,6 +435,9 @@ BEGIN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Error de validación: Ya existe una incidencia activa en esta zona. Resuelva o cierre la incidencia anterior antes de crear una nueva.';
     END IF;
 END$$ 
+DELIMITER ;
+
+DELIMITER $$
 CREATE TRIGGER incidenciaBloqueoBU
 BEFORE UPDATE ON incidencias
 FOR EACH ROW
@@ -404,30 +450,35 @@ BEGIN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Error de validación: Ya existe una incidencia activa en esta zona. Resuelva o cierre la incidencia anterior.';
     END IF;
 END$$ 
-
+DELIMITER ;
 -- -----------------------------------------------------
 -- Trigger: normalizaDireccionClienteBI
 -- Tabla: direcciones_cliente
 -- Propósito: Limpia los datos de la dirección (elimina espacios).
 -- -----------------------------------------------------
+DELIMITER $$
 CREATE TRIGGER normalizaDireccionClienteBI
 BEFORE INSERT ON direcciones_cliente
 FOR EACH ROW
 BEGIN
     SET NEW.direccion = TRIM(NEW.direccion);
 END$$ 
+DELIMITER ;
+
+DELIMITER $$
 CREATE TRIGGER normalizaDireccionClienteBU
 BEFORE UPDATE ON direcciones_cliente
 FOR EACH ROW
 BEGIN
     SET NEW.direccion = TRIM(NEW.direccion);
 END$$ 
-
+DELIMITER ;
 -- -----------------------------------------------------
 -- Trigger: slaRetrasoMarcaAIEntrega
 -- Tabla: entregas
 -- Propósito: Marca como "tarde" una entrega si la fecha estimada ya pasó.
 -- -----------------------------------------------------
+DELIMITER $$
 CREATE TRIGGER slaRetrasoMarcaAIEntrega
 AFTER INSERT ON entregas
 FOR EACH ROW
@@ -436,3 +487,4 @@ BEGIN
         UPDATE entregas SET fue_tarde = 1 WHERE id_entrega = NEW.id_entrega;
     END IF;
 END$$ 
+DELIMITER ;
