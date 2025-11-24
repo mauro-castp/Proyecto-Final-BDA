@@ -283,8 +283,6 @@ DELIMITER ;
 
 -- -----------------------------------------------------
 -- Trigger: detallePedidoValidacionBI
--- Tabla: detalle_pedido
--- Propósito: Valida que la cantidad sea > 0 y el producto exista.
 -- -----------------------------------------------------
 DELIMITER $$
 CREATE TRIGGER detallePedidoValidacionBI
@@ -315,8 +313,6 @@ END$$
 DELIMITER ;
 -- -----------------------------------------------------
 -- Trigger: entregaEstadoBU
--- Tabla: entregas
--- Propósito: Controla que las transiciones de estado sean lógicas.
 -- -----------------------------------------------------
 DELIMITER $$
 CREATE TRIGGER entregaEstadoBU
@@ -348,8 +344,6 @@ DELIMITER ;
 
 -- -----------------------------------------------------
 -- Trigger: vehiculoCapacidadBI
--- Tabla: paradas_ruta
--- Propósito: Evita sobrecargar un vehículo más allá de su capacidad.
 -- -----------------------------------------------------
 DELIMITER $$
 CREATE TRIGGER vehiculoCapacidadBI
@@ -419,8 +413,6 @@ DELIMITER ;
 
 -- -----------------------------------------------------
 -- Trigger: incidenciaBloqueoBI
--- Tabla: incidencias
--- Propósito: Evita solapes de incidencias activas en la misma zona.
 -- -----------------------------------------------------
 DELIMITER $$
 CREATE TRIGGER incidenciaBloqueoBI
@@ -453,8 +445,6 @@ END$$
 DELIMITER ;
 -- -----------------------------------------------------
 -- Trigger: normalizaDireccionClienteBI
--- Tabla: direcciones_cliente
--- Propósito: Limpia los datos de la dirección (elimina espacios).
 -- -----------------------------------------------------
 DELIMITER $$
 CREATE TRIGGER normalizaDireccionClienteBI
@@ -475,8 +465,6 @@ END$$
 DELIMITER ;
 -- -----------------------------------------------------
 -- Trigger: slaRetrasoMarcaAIEntrega
--- Tabla: entregas
--- Propósito: Marca como "tarde" una entrega si la fecha estimada ya pasó.
 -- -----------------------------------------------------
 DELIMITER $$
 CREATE TRIGGER slaRetrasoMarcaAIEntrega
