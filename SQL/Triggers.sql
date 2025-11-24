@@ -476,3 +476,108 @@ BEGIN
     END IF;
 END$$ 
 DELIMITER ;
+
+DELIMITER $$
+CREATE TRIGGER before_clientes_delete
+    BEFORE DELETE ON clientes
+    FOR EACH ROW
+BEGIN
+    DECLARE v_usuario VARCHAR(100);
+    
+    -- Obtener usuario de la variable de sesión MySQL
+    SELECT @usuario_sistema INTO v_usuario;
+    
+    -- Si no hay variable de sesión, usar el usuario de MySQL como fallback
+    IF v_usuario IS NULL THEN
+        SET v_usuario = USER();
+    END IF;
+    
+    -- Insertar en auditoría antes de eliminar
+    INSERT INTO aud_clientes (
+        id_cliente,
+        nombre,
+        telefono,
+        email,
+        usuario,  -- Columna correcta
+        accion
+    ) VALUES (
+        OLD.id_cliente,
+        OLD.nombre,
+        OLD.telefono,
+        OLD.email,
+        v_usuario,  -- Variable correcta
+        'DELETE'
+    );
+END $$
+DELIMITER ;
+
+-- Trigger para inserciones
+DELIMITER $$
+CREATE TRIGGER after_clientes_insert
+    AFTER INSERT ON clientes
+    FOR EACH ROW
+BEGIN
+    DECLARE v_usuario VARCHAR(100);
+    
+    -- Obtener usuario de la variable de sesión MySQL (si existe)
+    SELECT @usuario_sistema INTO v_usuario;
+    
+    -- Si no hay variable de sesión, usar el usuario de MySQL como fallback
+    IF v_usuario IS NULL THEN
+        SET v_usuario = USER();
+    END IF;
+    
+    INSERT INTO aud_clientes (
+        id_cliente,
+        nombre,
+        telefono,
+        email,
+        usuario,  -- Columna correcta
+        accion
+    ) VALUES (
+        NEW.id_cliente,
+        NEW.nombre,
+        NEW.telefono,
+        NEW.email,
+        v_usuario,  -- Variable correcta
+        'INSERT'
+    );
+END $$
+DELIMITER ;
+
+-- Trigger para actualizaciones
+DELIMITER $$
+CREATE TRIGGER after_clientes_update
+    AFTER UPDATE ON clientes
+    FOR EACH ROW
+BEGIN
+    DECLARE v_usuario VARCHAR(100);
+    
+    -- Obtener usuario de la variable de sesión MySQL (si existe)
+    SELECT @usuario_sistema INTO v_usuario;
+    
+    -- Si no hay variable de sesión, usar el usuario de MySQL como fallback
+    IF v_usuario IS NULL THEN
+        SET v_usuario = USER();
+    END IF;
+    
+    -- Solo auditar si hay cambios en los campos que nos interesan
+    IF OLD.nombre != NEW.nombre OR OLD.telefono != NEW.telefono OR OLD.email != NEW.email THEN
+        INSERT INTO aud_clientes (
+            id_cliente,
+            nombre,
+            telefono,
+            email,
+            usuario,  -- Columna correcta de la tabla
+            accion
+        ) VALUES (
+            NEW.id_cliente,
+            NEW.nombre,
+            NEW.telefono,
+            NEW.email,
+            v_usuario,  -- Variable correcta
+            'UPDATE'
+        );
+    END IF;
+END $$
+DELIMITER ;

@@ -13,7 +13,7 @@ class ClientsApp {
         this.init();
     }
 
-    init() {
+    async init() {
         this.bindEvents();
         this.cargarZonas();
         this.cargarClientes();
@@ -76,7 +76,10 @@ class ClientsApp {
             this.actualizarEstadisticas(data.estadisticas || {});
             this.actualizarPaginacion(data.paginacion);
 
+            this.cerrarCargando();
+
         } catch (error) {
+            this.cerrarCargando();
             console.error('Error cargando clientes:', error);
             this.mostrarError('Error cargando la lista de clientes');
         }
@@ -87,9 +90,32 @@ class ClientsApp {
             const response = await fetch('/api/zonas');
             if (!response.ok) throw new Error('Error cargando zonas');
             this.zonas = await response.json();
+
+            // Cargar zonas en los selects inmediatamente
+            this.cargarZonasEnSelects();
+
         } catch (error) {
             console.error('Error cargando zonas:', error);
-            // No mostrar error para evitar problemas
+        }
+    }
+
+    cargarZonasEnSelects() {
+        const selectNuevo = document.getElementById('zonaCliente');
+        const selectEditar = document.getElementById('editarZonaCliente');
+
+        if (this.zonas.length > 0) {
+            const zonasOptions = '<option value="">Seleccionar zona...</option>' +
+                this.zonas.map(zona =>
+                    `<option value="${zona.id_zona}">${zona.nombre_zona}</option>`
+                ).join('');
+
+            if (selectNuevo) {
+                selectNuevo.innerHTML = zonasOptions;
+            }
+
+            if (selectEditar) {
+                selectEditar.innerHTML = zonasOptions;
+            }
         }
     }
 
@@ -219,7 +245,7 @@ class ClientsApp {
     // Modal Nuevo Cliente
     mostrarModalNuevoCliente() {
         this.limpiarFormulario();
-        this.cargarZonasModal();
+        this.cargarZonasModal(); // Asegurar que las zonas estén cargadas
         document.getElementById('modalNuevoCliente').style.display = 'block';
     }
 
@@ -227,22 +253,34 @@ class ClientsApp {
         document.getElementById('modalNuevoCliente').style.display = 'none';
     }
 
-    cargarZonasModal() {
-        const selectNuevo = document.getElementById('zonaCliente');
-        const selectEditar = document.getElementById('editarZonaCliente');
+    async cargarZonasModal() {
+        try {
+            // Si ya tenemos las zonas cargadas, usarlas
+            if (this.zonas.length === 0) {
+                const response = await fetch('/api/zonas');
+                if (!response.ok) throw new Error('Error cargando zonas');
+                this.zonas = await response.json();
+            }
 
-        if (selectNuevo) {
-            selectNuevo.innerHTML = '<option value="">Seleccionar zona...</option>' +
+            const selectNuevo = document.getElementById('zonaCliente');
+            const selectEditar = document.getElementById('editarZonaCliente');
+
+            const zonasOptions = '<option value="">Seleccionar zona...</option>' +
                 this.zonas.map(zona =>
                     `<option value="${zona.id_zona}">${zona.nombre_zona}</option>`
                 ).join('');
-        }
 
-        if (selectEditar) {
-            selectEditar.innerHTML = '<option value="">Seleccionar zona...</option>' +
-                this.zonas.map(zona =>
-                    `<option value="${zona.id_zona}">${zona.nombre_zona}</option>`
-                ).join('');
+            if (selectNuevo) {
+                selectNuevo.innerHTML = zonasOptions;
+            }
+
+            if (selectEditar) {
+                selectEditar.innerHTML = zonasOptions;
+            }
+
+        } catch (error) {
+            console.error('Error cargando zonas para modal:', error);
+            // No mostrar error al usuario para no interrumpir el flujo
         }
     }
 
@@ -254,6 +292,9 @@ class ClientsApp {
                 return;
             }
 
+            // Mostrar carga
+            this.mostrarCargando('Creando cliente...');
+
             const response = await fetch('/api/clientes', {
                 method: 'POST',
                 headers: {
@@ -262,17 +303,19 @@ class ClientsApp {
                 body: JSON.stringify(formData)
             });
 
+            const result = await response.json();
+
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Error creando cliente');
+                throw new Error(result.error || 'Error creando cliente');
             }
 
-            const result = await response.json();
+            this.cerrarCargando();
             this.mostrarExito('Cliente creado exitosamente');
             this.cerrarModal();
             this.cargarClientes();
 
         } catch (error) {
+            this.cerrarCargando();
             console.error('Error creando cliente:', error);
             this.mostrarError(error.message || 'Error al crear el cliente');
         }
@@ -290,28 +333,28 @@ class ClientsApp {
     }
 
     validarFormulario(formData) {
-        if (!formData.nombre || formData.nombre === '') {
+        if (!formData.nombre || formData.nombre.trim() === '') {
             this.mostrarError('Por favor ingrese el nombre del cliente');
             return false;
         }
 
-        if (!formData.id_zona) {
-            this.mostrarError('Por favor seleccione una zona');
+        if (!formData.id_zona || isNaN(formData.id_zona)) {
+            this.mostrarError('Por favor seleccione una zona válida');
             return false;
         }
 
-        if (!formData.direccion || formData.direccion === '') {
+        if (!formData.direccion || formData.direccion.trim() === '') {
             this.mostrarError('Por favor ingrese la dirección del cliente');
             return false;
         }
 
-        if (!formData.id_estado_cliente) {
-            this.mostrarError('Por favor seleccione un estado para el cliente');
+        if (!formData.id_estado_cliente || isNaN(formData.id_estado_cliente)) {
+            this.mostrarError('Por favor seleccione un estado válido para el cliente');
             return false;
         }
 
         // Validar email si se proporciona
-        if (formData.email && !this.validarEmail(formData.email)) {
+        if (formData.email && formData.email.trim() !== '' && !this.validarEmail(formData.email)) {
             this.mostrarError('Por favor ingrese un email válido');
             return false;
         }
@@ -389,6 +432,9 @@ class ClientsApp {
 
     async editarCliente(idCliente) {
         try {
+            // Cargar zonas antes de abrir el modal
+            await this.cargarZonasModal();
+
             const response = await fetch(`/api/clientes/${idCliente}`);
             if (!response.ok) throw new Error('Error cargando datos del cliente');
 
@@ -402,14 +448,26 @@ class ClientsApp {
     }
 
     mostrarModalEditar(cliente) {
+        // Establecer los valores del formulario
         document.getElementById('editarIdCliente').value = cliente.id_cliente;
         document.getElementById('editarNombreCliente').value = cliente.nombre || '';
         document.getElementById('editarTelefonoCliente').value = cliente.telefono || '';
         document.getElementById('editarEmailCliente').value = cliente.email || '';
         document.getElementById('editarDireccionCliente').value = cliente.direccion || '';
-        document.getElementById('editarZonaCliente').value = cliente.id_zona || '';
         document.getElementById('editarEstadoCliente').value = cliente.id_estado_cliente || 1;
 
+        // Establecer la zona - IMPORTANTE: hacer después de cargar las opciones
+        const selectZona = document.getElementById('editarZonaCliente');
+        if (selectZona && cliente.id_zona) {
+            // Esperar un momento para asegurar que las opciones estén cargadas
+            setTimeout(() => {
+                selectZona.value = cliente.id_zona;
+            }, 100);
+        } else if (selectZona) {
+            selectZona.value = '';
+        }
+
+        // Mostrar el modal
         document.getElementById('modalEditarCliente').style.display = 'block';
     }
 
@@ -427,6 +485,9 @@ class ClientsApp {
 
             const idCliente = document.getElementById('editarIdCliente').value;
 
+            // Mostrar carga
+            this.mostrarCargando('Actualizando cliente...');
+
             const response = await fetch(`/api/clientes/${idCliente}`, {
                 method: 'PUT',
                 headers: {
@@ -435,17 +496,19 @@ class ClientsApp {
                 body: JSON.stringify(formData)
             });
 
+            const result = await response.json();
+
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Error actualizando cliente');
+                throw new Error(result.error || 'Error actualizando cliente');
             }
 
-            const result = await response.json();
+            this.cerrarCargando();
             this.mostrarExito('Cliente actualizado exitosamente');
             this.cerrarModalEditar();
             this.cargarClientes();
 
         } catch (error) {
+            this.cerrarCargando();
             console.error('Error actualizando cliente:', error);
             this.mostrarError(error.message || 'Error al actualizar el cliente');
         }
@@ -467,25 +530,36 @@ class ClientsApp {
     }
 
     async eliminarCliente(idCliente) {
-        if (!confirm('¿Está seguro de que desea eliminar este cliente? Esta acción cambiará su estado a inactivo.')) {
-            return;
-        }
-
         try {
+            const result = await this.mostrarConfirmacion(
+                '¿Está seguro de que desea eliminar este cliente? Esta acción no se puede deshacer.',
+                'Sí, eliminar',
+                'Cancelar'
+            );
+
+            if (!result.isConfirmed) {
+                return;
+            }
+
+            // Mostrar carga
+            this.mostrarCargando('Eliminando cliente...');
+
             const response = await fetch(`/api/clientes/${idCliente}`, {
                 method: 'DELETE'
             });
 
+            const data = await response.json();
+
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Error eliminando cliente');
+                throw new Error(data.error || 'Error eliminando cliente');
             }
 
-            const result = await response.json();
-            this.mostrarExito(result.message || 'Cliente eliminado exitosamente');
+            this.cerrarCargando();
+            this.mostrarExito(data.message || 'Cliente eliminado exitosamente');
             this.cargarClientes();
 
         } catch (error) {
+            this.cerrarCargando();
             console.error('Error eliminando cliente:', error);
             this.mostrarError(error.message || 'Error al eliminar el cliente');
         }
@@ -521,11 +595,53 @@ class ClientsApp {
     }
 
     mostrarError(mensaje) {
-        alert('Error: ' + mensaje);
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: mensaje,
+            confirmButtonText: 'Aceptar',
+            confirmButtonColor: '#dc3545'
+        });
     }
 
     mostrarExito(mensaje) {
-        alert('Éxito: ' + mensaje);
+        Swal.fire({
+            icon: 'success',
+            title: 'Éxito',
+            text: mensaje,
+            confirmButtonText: 'Aceptar',
+            confirmButtonColor: '#28a745',
+            timer: 3000,
+            timerProgressBar: true
+        });
+    }
+
+    mostrarConfirmacion(mensaje, textoConfirmar = 'Sí, eliminar', textoCancelar = 'Cancelar') {
+        return Swal.fire({
+            icon: 'warning',
+            title: 'Confirmar acción',
+            text: mensaje,
+            showCancelButton: true,
+            confirmButtonText: textoConfirmar,
+            cancelButtonText: textoCancelar,
+            confirmButtonColor: '#dc3545',
+            cancelButtonColor: '#6c757d',
+            reverseButtons: true
+        });
+    }
+
+    mostrarCargando(titulo = 'Procesando...') {
+        Swal.fire({
+            title: titulo,
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+    }
+
+    cerrarCargando() {
+        Swal.close();
     }
 }
 

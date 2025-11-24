@@ -25,6 +25,28 @@
 -- Desactivar foreign keys
 SET FOREIGN_KEY_CHECKS = 0;
 
+
+--
+-- Table structure for table `aud_clientes`
+--
+
+CREATE TABLE `aud_clientes` (
+  `id_log` INT NOT NULL AUTO_INCREMENT,
+  `id_cliente` INT DEFAULT NULL,
+  `nombre` VARCHAR(200) DEFAULT NULL,
+  `telefono` VARCHAR(20) DEFAULT NULL,
+  `email` VARCHAR(150) DEFAULT NULL,
+  `usuario` VARCHAR(100) DEFAULT NULL,
+  `accion` ENUM('INSERT', 'UPDATE', 'DELETE') NOT NULL,
+  `fecha` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP(),
+  PRIMARY KEY (`id_log`),
+  INDEX idx_id_cliente (id_cliente),
+  INDEX idx_nombre (nombre),
+  INDEX idx_fecha (fecha),
+  INDEX idx_accion (accion),
+  INDEX idx_usuario (usuario)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 --
 -- Table structure for table `aud_entregas`
 --
