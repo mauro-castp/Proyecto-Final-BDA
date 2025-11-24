@@ -18,9 +18,15 @@
             <select id="filtroEstado" class="form-control">
                 <option value="">Todos los estados</option>
                 <option value="pendiente">Pendientes</option>
-                <option value="procesando">En Proceso</option>
-                <option value="completado">Completados</option>
+                <option value="confirmado">Confirmados</option>
+                <option value="en preparacion">En Preparación</option>
+                <option value="listo para entrega">Listos para Entrega</option>
+                <option value="en camino">En Camino</option>
+                <option value="entregado">Entregados</option>
                 <option value="cancelado">Cancelados</option>
+            </select>
+            <select id="filtroEmpresa" class="form-control">
+                <option value="">Todas las empresas</option>
             </select>
             <input type="date" id="filtroFecha" class="form-control">
             <button class="btn btn-outline" onclick="pedidosApp.aplicarFiltros()">
@@ -56,18 +62,19 @@
         <table class="table pedidos-table">
             <thead>
                 <tr>
-                    <!-- <th>ID</th> -->
+                    <th>ID</th>
                     <th>Cliente</th>
+                    <th>Empresa</th>
                     <th>Fecha</th>
-                    <th>Productos</th>
                     <th>Total</th>
+                    <th>Productos</th>
                     <th>Estado</th>
                     <th>Acciones</th>
                 </tr>
             </thead>
             <tbody id="tablaPedidos">
                 <tr>
-                    <td colspan="7" class="text-center">
+                    <td colspan="8" class="text-center">
                         <div class="loading-spinner">
                             <i class="fas fa-spinner fa-spin"></i>
                             <span>Cargando pedidos...</span>
@@ -98,9 +105,9 @@
 
 <!-- Modal Nuevo Pedido -->
 <div id="modalNuevoPedido" class="modal">
-    <div class="modal-content">
+    <div class="modal-content modal-lg">
         <div class="modal-header">
-            <h3><i class="fas fa-plus-circle"></i> Nuevo Pedido</h3>
+            <h3 id="modalPedidoTitulo"><i class="fas fa-plus-circle"></i> Nuevo Pedido</h3>
             <button class="btn-close" onclick="pedidosApp.cerrarModal()">
                 <i class="fas fa-times"></i>
             </button>
@@ -109,55 +116,52 @@
             <form id="formNuevoPedido">
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="clienteSelect">Cliente *</label>
-                        <select id="clienteSelect" class="form-control" required>
+                        <label for="clientePedido">Cliente *</label>
+                        <select id="clientePedido" class="form-control" required onchange="pedidosApp.cargarDireccionesCliente(this.value)">
                             <option value="">Seleccionar cliente...</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label for="direccionEntrega">Dirección de Entrega</label>
-                        <select id="direccionEntrega" class="form-control" required disabled>
-                            <option value="">Seleccionar dirección...</option>
+                        <label for="empresaPedido">Empresa</label>
+                        <select id="empresaPedido" class="form-control">
+                            <option value="">Sin empresa</option>
                         </select>
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label>Productos</label>
+                    <label for="direccionPedido">Dirección de Entrega *</label>
+                    <select id="direccionPedido" class="form-control" required>
+                        <option value="">Seleccionar dirección...</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Productos *</label>
                     <div class="productos-container">
-                        <div class="producto-item" id="productoPlantilla" style="display: none;">
-                            <select class="producto-select form-control">
-                                <option value="">Seleccionar producto...</option>
-                            </select>
-                            <input type="number" class="cantidad-input form-control" placeholder="Cantidad" min="1"
-                                value="1">
-                            <span class="precio-unitario">$0.00</span>
-                            <span class="subtotal">$0.00</span>
-                            <button type="button" class="btn-remove-producto"
-                                onclick="pedidosApp.eliminarProducto(this)">
-                                <i class="fas fa-times"></i>
-                            </button>
+                        <div class="producto-item" id="productoBase" style="display: none;">
+                            <div class="producto-row">
+                                <select class="form-control producto-select" onchange="pedidosApp.actualizarPrecio(this)">
+                                    <option value="">Seleccionar producto...</option>
+                                </select>
+                                <input type="number" class="form-control cantidad-input" min="1" value="1" placeholder="Cantidad" onchange="pedidosApp.actualizarSubtotal(this)">
+                                <input type="text" class="form-control precio-input" readonly placeholder="Precio unitario">
+                                <input type="text" class="form-control subtotal-input" readonly placeholder="Subtotal">
+                                <button type="button" class="btn btn-danger btn-remove" onclick="pedidosApp.eliminarProducto(this)">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
                         </div>
                         <div id="listaProductos"></div>
-                        <button type="button" class="btn btn-outline" onclick="pedidosApp.agregarProducto()">
+                        <button type="button" class="btn btn-outline btn-block" onclick="pedidosApp.agregarProducto()">
                             <i class="fas fa-plus"></i> Agregar Producto
                         </button>
                     </div>
                 </div>
 
-                <div class="resumen-pedido">
-                    <div class="resumen-item">
-                        <span>Subtotal:</span>
-                        <span id="subtotalTotal">$0.00</span>
-                    </div>
-                    <div class="resumen-item">
-                        <span>Envío:</span>
-                        <span id="costoEnvio">$0.00</span>
-                    </div>
-                    <div class="resumen-item total">
-                        <span>Total:</span>
-                        <span id="totalPedido">$0.00</span>
-                    </div>
+                <div class="form-group">
+                    <label>Total del Pedido</label>
+                    <input type="text" id="totalPedido" class="form-control total-input" readonly value="$0.00">
                 </div>
             </form>
         </div>
@@ -165,7 +169,7 @@
             <button type="button" class="btn btn-secondary" onclick="pedidosApp.cerrarModal()">
                 Cancelar
             </button>
-            <button type="button" class="btn btn-primary" onclick="pedidosApp.crearPedido()">
+            <button type="button" class="btn btn-primary" onclick="pedidosApp.guardarPedido()">
                 <i class="fas fa-save"></i> Crear Pedido
             </button>
         </div>
@@ -189,5 +193,7 @@
 {% endblock %}
 
 {% block js_specific %}
+<!-- Incluir SweetAlert2 -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="{{ url_for('static', filename='js/pedidos.js') }}"></script>
 {% endblock %}

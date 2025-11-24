@@ -8,6 +8,7 @@ from utils.decorators import login_required, role_required
 from datetime import datetime
 from routes.clientes import init_clientes_routes
 from routes.empresas import init_empresas_routes
+from routes.pedidos import init_pedidos_routes
 
 # Obtener el directorio base del proyecto
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -26,8 +27,12 @@ swagger = Swagger(app, template=swagger_template)
 # Después de crear la app y mysql
 clientes_bp = init_clientes_routes(app, mysql)
 app.register_blueprint(clientes_bp, url_prefix='/')
+
 empresas_bp = init_empresas_routes(app, mysql)
 app.register_blueprint(empresas_bp, url_prefix='/')
+
+pedidos_bp = init_pedidos_routes(app, mysql)
+app.register_blueprint(pedidos_bp, url_prefix='/')
 
 # Context processor
 @app.context_processor
