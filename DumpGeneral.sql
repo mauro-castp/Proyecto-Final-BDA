@@ -22,6 +22,9 @@
 -- GRANT ALL PRIVILEGES ON proyecto.* TO proyecto_user@localhost IDENTIFIED BY '666'; 
 -- mysql -u proyecto_user -p666 proyecto < DumpGeneral.sql
 
+-- Desactivar foreign keys
+SET FOREIGN_KEY_CHECKS = 0;
+
 --
 -- Table structure for table `aud_entregas`
 --
@@ -1589,6 +1592,10 @@ INSERT INTO `zonas` (`nombre_zona`, `descripcion`, `radio_km`, `id_estado_zona`,
 /*!40000 ALTER TABLE `zonas` ENABLE KEYS */;
 UNLOCK TABLES;
 commit;
+
+-- AQUÍ reactivas las foreign keys
+SET FOREIGN_KEY_CHECKS = 1;
+
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
