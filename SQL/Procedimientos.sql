@@ -406,6 +406,7 @@ BEGIN
     GROUP BY e.id_ruta;
 
     SELECT * FROM tmpOtp;
+    DROP TEMPORARY TABLE tmpOtp;
 END $$
 DELIMITER ;
 
@@ -437,6 +438,7 @@ BEGIN
     GROUP BY c.id_zona, c.id_vehiculo;
 
     SELECT * FROM tmpCostosKM;
+    DROP TEMPORARY TABLE tmpCostosKM;
 END $$
 DELIMITER ;
 
@@ -467,6 +469,7 @@ BEGIN
     ORDER BY entregas_realizadas DESC;
 
     SELECT * FROM tmpProductividad;
+    DROP TEMPORARY TABLE tmpProductividad;
 END $$
 DELIMITER ;
 
@@ -522,6 +525,7 @@ BEGIN
     WHERE YEAR(fecha_registro) = p_anio AND MONTH(fecha_registro) = p_mes;
 
     SELECT * FROM tmpKPIglobal;
+    DROP TEMPORARY TABLE tmpKPIglobal;
 END $$
 DELIMITER ;
 
@@ -578,5 +582,45 @@ BEGIN
     FROM aud_entregas
     WHERE fecha BETWEEN p_desde AND p_hasta
     ORDER BY fecha DESC;
+END $$
+DELIMITER ;
+
+-- entregasZona
+
+DELIMITER $$
+CREATE PROCEDURE entregasZona(
+    IN p_desde DATE,
+    IN p_hasta DATE
+)
+BEGIN
+    CREATE TEMPORARY TABLE tmpEntregasZona (
+        id_zona INT,
+        nombre_zona VARCHAR(100),
+        entregas_completadas INT,
+        entregas_fallidas INT,
+        tasa_exito DECIMAL(5,2),
+        tiempo_promedio_min INT
+    );
+
+    INSERT INTO tmpEntregasZona(id_zona, nombre_zona, entregas_completadas, entregas_fallidas, tasa_exito, tiempo_promedio_min)
+    SELECT 
+        z.id_zona,
+        z.nombre_zona,
+        SUM(CASE WHEN e.id_estado_entrega = 3 THEN 1 ELSE 0 END) as entregas_completadas,
+        SUM(CASE WHEN e.id_estado_entrega = 4 THEN 1 ELSE 0 END) as entregas_fallidas,
+        ROUND(
+            (SUM(CASE WHEN e.id_estado_entrega = 3 THEN 1 ELSE 0 END) * 100.0) / 
+            NULLIF(COUNT(e.id_entrega), 0), 
+        2) as tasa_exito,
+        AVG(TIMESTAMPDIFF(MINUTE, e.fecha_estimada_entrega, e.fecha_entrega_real)) as tiempo_promedio_min
+    FROM zonas z
+    LEFT JOIN direcciones_cliente dc ON dc.id_zona = z.id_zona
+    LEFT JOIN pedidos p ON p.id_direccion_entrega = dc.id_direccion
+    LEFT JOIN entregas e ON e.id_pedido = p.id_pedido
+    WHERE DATE(e.fecha_estimada_entrega) BETWEEN p_desde AND p_hasta
+    GROUP BY z.id_zona, z.nombre_zona;
+
+    SELECT * FROM tmpEntregasZona;
+    DROP TEMPORARY TABLE tmpEntregasZona;
 END $$
 DELIMITER ;
