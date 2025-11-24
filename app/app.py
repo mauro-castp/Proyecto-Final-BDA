@@ -32,9 +32,10 @@ def inject_user_data():
 
 # ==================== RUTAS PRINCIPALES ====================
 @app.route('/')
-@login_required
 def index():
     """Página principal del sistema"""
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
     return render_template('index.html')
 
 @app.route('/login', methods=['GET', 'POST'])
