@@ -1,3 +1,43 @@
+/* ==========================================================================
+   1. VARIABLES DE CSS (SISTEMA DE DISEÑO)
+   ========================================================================== */
+:root {
+    /* Colores */
+    --color-primary: #6366f1;
+    --color-primary-dark: #4f46e5;
+    --color-secondary: #8b5cf6;
+    --color-text: #1e293b;
+    --color-text-light: #64748b;
+    --color-bg-card: rgba(255, 255, 255, 0.85);
+    --color-bg-input: #ffffff;
+    --color-border: #e2e8f0;
+    --color-error: #ef4444;
+    --color-success: #10b981;
+
+    /* Tipografía */
+    --font-family: 'Poppins', sans-serif;
+
+    /* Espaciado */
+    --spacing-xs: 0.5rem;
+    --spacing-sm: 1rem;
+    --spacing-md: 1.5rem;
+    --spacing-lg: 2rem;
+    --spacing-xl: 2.5rem;
+
+    /* Bordes y Sombras */
+    --border-radius: 12px;
+    --border-radius-sm: 8px;
+    --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+
+    /* Transiciones */
+    --transition-fast: 150ms ease-in-out;
+    --transition-base: 300ms ease-in-out;
+}
+
+/* ==========================================================================
+     2. ESTILOS GLOBALES Y FONDO
+     ========================================================================== */
 * {
     margin: 0;
     padding: 0;
@@ -5,49 +45,70 @@
 }
 
 body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    font-family: var(--font-family);
+    /* Fondo sutil con gradiente y patrón */
+    background-color: #f0f4f8;
+    background-image:
+        radial-gradient(at 47% 33%, hsl(215, 98%, 85%) 0, transparent 59%),
+        radial-gradient(at 82% 65%, hsl(218, 97%, 86%) 0, transparent 55%);
     min-height: 100vh;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 20px;
+    padding: var(--spacing-sm);
 }
 
+/* ==========================================================================
+     3. CONTENEDOR DE LOGIN (EFECTO GLASSMORPHISM)
+     ========================================================================== */
 .login-container {
-    background: white;
-    padding: 40px;
-    border-radius: 15px;
-    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+    background: var(--color-bg-card);
+    padding: var(--spacing-xl);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-lg);
     width: 100%;
-    max-width: 400px;
+    max-width: 420px;
+    /* Efecto de cristal esmerilado */
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    transition: all var(--transition-base);
 }
 
+/* ==========================================================================
+     4. LOGO Y TÍTULO
+     ========================================================================== */
 .logo {
     text-align: center;
-    margin-bottom: 30px;
+    margin-bottom: var(--spacing-lg);
 }
 
 .logo h1 {
-    color: #2c3e50;
+    color: var(--color-text);
     font-size: 2rem;
-    margin-bottom: 5px;
+    font-weight: 700;
+    margin-bottom: var(--spacing-xs);
 }
 
 .logo p {
-    color: #7f8c8d;
+    color: var(--color-text-light);
     font-size: 0.9rem;
+    font-weight: 500;
 }
 
+/* ==========================================================================
+     5. FORMULARIO
+     ========================================================================== */
 .form-group {
-    margin-bottom: 20px;
+    margin-bottom: var(--spacing-md);
 }
 
 .form-group label {
     display: block;
-    margin-bottom: 5px;
-    color: #2c3e50;
+    margin-bottom: var(--spacing-xs);
+    color: var(--color-text);
     font-weight: 500;
+    font-size: 0.9rem;
 }
 
 .input-with-icon {
@@ -56,81 +117,176 @@ body {
 
 .input-with-icon i {
     position: absolute;
-    left: 15px;
+    left: 1rem;
     top: 50%;
     transform: translateY(-50%);
-    color: #7f8c8d;
+    color: var(--color-text-light);
+    transition: color var(--transition-fast);
 }
 
 .input-with-icon input {
     width: 100%;
-    padding: 12px 15px 12px 45px;
-    border: 2px solid #e9ecef;
-    border-radius: 8px;
-    font-size: 1rem;
-    transition: all 0.3s;
+    padding: 0.875rem 1rem 0.875rem 2.75rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius-sm);
+    font-size: 0.95rem;
+    font-family: var(--font-family);
+    background-color: var(--color-bg-input);
+    color: var(--color-text);
+    transition: all var(--transition-fast);
 }
 
 .input-with-icon input:focus {
     outline: none;
-    border-color: #3498db;
-    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
 }
 
-.btn-login {
-    width: 100%;
-    background: linear-gradient(135deg, #3498db, #2980b9);
-    color: white;
-    border: none;
-    padding: 12px;
-    border-radius: 8px;
-    font-size: 1rem;
-    font-weight: 600;
+.input-with-icon input:focus+i {
+    color: var(--color-primary);
+}
+
+/* Estilo para validación de formulario */
+.input-with-icon input:invalid:not(:placeholder-shown) {
+    border-color: var(--color-error);
+}
+
+.input-with-icon input:invalid:not(:placeholder-shown)+i {
+    color: var(--color-error);
+}
+
+/* Opciones del formulario: "Recordarme" y "¿Olvidaste tu contraseña?" */
+.form-options {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-md);
+    font-size: 0.9rem;
+}
+
+/* Checkbox personalizado */
+.checkbox-wrapper {
+    display: flex;
+    align-items: center;
     cursor: pointer;
-    transition: all 0.3s;
+}
+
+.checkbox-wrapper input[type="checkbox"] {
+    display: none;
+    /* Ocultar el checkbox por defecto */
+}
+
+.checkbox-custom {
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--color-border);
+    border-radius: 4px;
+    margin-right: var(--spacing-xs);
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 10px;
+    transition: all var(--transition-fast);
+}
+
+.checkbox-wrapper input[type="checkbox"]:checked+.checkbox-custom {
+    background-color: var(--color-primary);
+    border-color: var(--color-primary);
+}
+
+.checkbox-custom::after {
+    content: '\2713';
+    /* Símbolo de check */
+    color: white;
+    font-size: 14px;
+    font-weight: bold;
+    display: none;
+}
+
+.checkbox-wrapper input[type="checkbox"]:checked+.checkbox-custom::after {
+    display: block;
+}
+
+.checkbox-wrapper label {
+    color: var(--color-text);
+    cursor: pointer;
+    user-select: none;
+}
+
+.form-options a {
+    color: var(--color-primary);
+    text-decoration: none;
+    font-weight: 500;
+    transition: color var(--transition-fast);
+}
+
+.form-options a:hover {
+    color: var(--color-primary-dark);
+    text-decoration: underline;
+}
+
+/* ==========================================================================
+     6. BOTÓN DE LOGIN
+     ========================================================================== */
+.btn-login {
+    width: 100%;
+    background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+    color: white;
+    border: none;
+    padding: 0.875rem;
+    border-radius: var(--border-radius-sm);
+    font-size: 1rem;
+    font-weight: 600;
+    font-family: var(--font-family);
+    cursor: pointer;
+    transition: all var(--transition-base);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-xs);
 }
 
 .btn-login:hover {
     transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);
+    box-shadow: 0 10px 20px -5px rgba(99, 102, 241, 0.4);
 }
 
 .btn-login:active {
-    transform: translateY(0);
+    transform: scale(0.98);
+    box-shadow: 0 5px 10px -5px rgba(99, 102, 241, 0.4);
 }
 
+/* ==========================================================================
+     7. CUENTAS DE DEMOSTRACIÓN
+     ========================================================================== */
 .demo-accounts {
-    margin-top: 30px;
-    padding: 20px;
-    background: #f8f9fa;
-    border-radius: 8px;
-    border-left: 4px solid #3498db;
+    margin-top: var(--spacing-lg);
+    padding: var(--spacing-md);
+    background: rgba(255, 255, 255, 0.5);
+    border-radius: var(--border-radius-sm);
+    border-left: 4px solid var(--color-primary);
 }
 
 .demo-accounts h3 {
-    color: #2c3e50;
-    margin-bottom: 15px;
+    color: var(--color-text);
+    margin-bottom: var(--spacing-sm);
     font-size: 1rem;
+    font-weight: 600;
 }
 
 .demo-account {
-    background: white;
-    padding: 12px;
-    margin-bottom: 10px;
-    border-radius: 5px;
-    border: 1px solid #e9ecef;
+    background: var(--color-bg-card);
+    padding: var(--spacing-sm);
+    margin-bottom: var(--spacing-xs);
+    border-radius: var(--border-radius-sm);
+    border: 1px solid var(--color-border);
     cursor: pointer;
-    transition: all 0.3s;
+    transition: all var(--transition-base);
 }
 
 .demo-account:hover {
-    border-color: #3498db;
-    background: #f8f9fa;
+    border-color: var(--color-primary);
     transform: translateX(5px);
+    box-shadow: var(--shadow-sm);
 }
 
 .demo-account:last-child {
@@ -139,43 +295,43 @@ body {
 
 .demo-account .role {
     font-weight: 600;
-    color: #2c3e50;
-    margin-bottom: 5px;
+    color: var(--color-text);
+    margin-bottom: 3px;
 }
 
 .demo-account .credentials {
     font-size: 0.8rem;
-    color: #7f8c8d;
+    color: var(--color-text-light);
     font-family: 'Courier New', monospace;
 }
 
+/* ==========================================================================
+     8. ALERTAS
+     ========================================================================== */
 .alert {
-    padding: 12px 15px;
-    border-radius: 5px;
-    margin-bottom: 20px;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--border-radius-sm);
+    margin-bottom: var(--spacing-md);
     color: white;
     text-align: center;
     animation: slideIn 0.3s ease;
+    font-weight: 500;
 }
 
 .alert.error {
-    background: #e74c3c;
-    border-left: 4px solid #c0392b;
+    background-color: var(--color-error);
 }
 
 .alert.success {
-    background: #27ae60;
-    border-left: 4px solid #229954;
+    background-color: var(--color-success);
 }
 
 .alert.warning {
-    background: #f39c12;
-    border-left: 4px solid #e67e22;
+    background-color: #f59e0b;
 }
 
 .alert.info {
-    background: #3498db;
-    border-left: 4px solid #2980b9;
+    background-color: #3b82f6;
 }
 
 @keyframes slideIn {
@@ -190,17 +346,21 @@ body {
     }
 }
 
-/* Responsive */
+/* ==========================================================================
+     9. DISEÑO RESPONSIVO
+     ========================================================================== */
 @media (max-width: 480px) {
     .login-container {
-        padding: 30px 20px;
+        padding: var(--spacing-lg) var(--spacing-md);
     }
 
     .logo h1 {
-        font-size: 1.7rem;
+        font-size: 1.75rem;
     }
 
-    .demo-accounts {
-        padding: 15px;
+    .form-options {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-xs);
     }
 }
