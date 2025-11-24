@@ -1,6 +1,8 @@
 -- clienteCrearActualizar
 
 -- Corrección del procedimiento clienteCrearActualizar
+DROP PROCEDURE IF EXISTS clienteCrearActualizar;
+
 DELIMITER $$
 CREATE PROCEDURE clienteCrearActualizar(
     IN p_id_cliente INT,
@@ -8,15 +10,19 @@ CREATE PROCEDURE clienteCrearActualizar(
     IN p_telefono VARCHAR(20),
     IN p_email VARCHAR(150),
     IN p_direccion TEXT,
-    IN p_id_zona INT
+    IN p_id_zona INT,
+    IN p_id_estado_cliente INT,
+    IN p_usuario_sistema VARCHAR(100)  -- PARÁMETRO NUEVO (8°)
 )
 BEGIN
     SET p_direccion = TRIM(p_direccion);
 
+    -- Guardar el usuario del sistema en variable de sesión para los triggers
+    SET @usuario_sistema = p_usuario_sistema;
+
     IF p_id_cliente IS NULL THEN
-        -- CORREGIDO: usar id_estado_cliente en lugar de id_estado
         INSERT INTO clientes(nombre, telefono, email, id_estado_cliente)
-        VALUES(p_nombre, p_telefono, p_email, 1);
+        VALUES(p_nombre, p_telefono, p_email, p_id_estado_cliente);
         
         SET p_id_cliente = LAST_INSERT_ID();
 
@@ -26,7 +32,8 @@ BEGIN
         UPDATE clientes
         SET nombre = p_nombre,
             telefono = p_telefono,
-            email = p_email
+            email = p_email,
+            id_estado_cliente = p_id_estado_cliente
         WHERE id_cliente = p_id_cliente;
 
         UPDATE direcciones_cliente
@@ -34,6 +41,9 @@ BEGIN
             id_zona = p_id_zona
         WHERE id_cliente = p_id_cliente AND es_principal = 1;
     END IF;
+
+    -- Limpiar la variable de sesión
+    SET @usuario_sistema = NULL;
 
     SELECT p_id_cliente AS id_cliente;
 END $$
@@ -858,16 +868,38 @@ END $$
 DELIMITER ;
 
 -- Procedimiento para eliminar (soft delete) un cliente
+DROP PROCEDURE IF EXISTS clienteEliminar;
+
 DELIMITER $$
 CREATE PROCEDURE clienteEliminar(
-    IN p_id_cliente INT
+    IN p_id_cliente INT,
+    IN p_usuario_sistema VARCHAR(100)  -- Usuario del sistema
 )
 BEGIN
-    UPDATE clientes 
-    SET id_estado_cliente = 2 
+    DECLARE cliente_existe INT DEFAULT 0;
+    
+    -- Verificar si el cliente existe
+    SELECT COUNT(*) INTO cliente_existe 
+    FROM clientes 
     WHERE id_cliente = p_id_cliente;
     
-    SELECT 'Cliente eliminado correctamente' AS mensaje;
+    IF cliente_existe = 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Cliente no encontrado';
+    ELSE
+        -- Guardar el usuario del sistema en una variable de sesión MySQL
+        SET @usuario_sistema = p_usuario_sistema;
+        
+        -- Eliminar direcciones primero (por las FK)
+        DELETE FROM direcciones_cliente WHERE id_cliente = p_id_cliente;
+        
+        -- Eliminar cliente físicamente (el trigger usará la variable de sesión)
+        DELETE FROM clientes WHERE id_cliente = p_id_cliente;
+        
+        -- Limpiar la variable de sesión
+        SET @usuario_sistema = NULL;
+        
+        SELECT 'Cliente eliminado permanentemente' AS mensaje;
+    END IF;
 END $$
 DELIMITER ;
 
@@ -1348,5 +1380,25 @@ BEGIN
     INNER JOIN clientes c ON p.id_cliente = c.id_cliente
     WHERE p.id_empresa = p_id_empresa
     ORDER BY p.fecha_pedido DESC;
+END $$
+DELIMITER ;
+
+DELIMITER $$
+CREATE PROCEDURE obtenerNombreUsuario(
+    IN p_id_usuario INT
+)
+BEGIN
+    DECLARE v_nombre VARCHAR(100);
+    
+    SELECT nombre INTO v_nombre
+    FROM usuarios 
+    WHERE id_usuario = p_id_usuario;
+    
+    -- Si no encuentra el usuario, usar valor por defecto
+    IF v_nombre IS NULL THEN
+        SET v_nombre = 'admin';
+    END IF;
+    
+    SELECT v_nombre AS nombre_usuario;
 END $$
 DELIMITER ;
