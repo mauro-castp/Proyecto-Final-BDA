@@ -404,18 +404,11 @@ def obtener_pedidos_por_estado():
 @role_required([1, 2])
 def obtener_clientes():
     """
-    Obtener todos los clientes - CORREGIDO
+    Obtener todos los clientes - vía procedimiento
     """
     try:
         cur = mysql.connection.cursor()
-        cur.execute("""
-            SELECT c.id_cliente, c.nombre, c.telefono, c.email, 
-                   dc.direccion, z.nombre_zona, c.id_estado
-            FROM clientes c
-            LEFT JOIN direcciones_cliente dc ON c.id_cliente = dc.id_cliente
-            LEFT JOIN zonas z ON dc.id_zona = z.id_zona
-            WHERE c.id_estado = 1
-        """)
+        cur.callproc('clientesActivosListar')
         clientes = cur.fetchall()
         cur.close()
         return jsonify(clientes)
@@ -514,34 +507,99 @@ def eliminar_cliente(id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# ==================== CATÁLOGOS AUXILIARES ====================
+@app.route('/api/productos', methods=['GET'])
+@login_required
+def obtener_productos():
+    """
+    Obtener catálogo de productos (procedimiento)
+    """
+    try:
+        cur = mysql.connection.cursor()
+        cur.callproc('productosActivosListar')
+        productos = cur.fetchall()
+        cur.close()
+        return jsonify(productos)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/clientes/<int:id>/direcciones', methods=['GET'])
+@login_required
+def obtener_direcciones_cliente(id):
+    """
+    Obtener direcciones activas de un cliente
+    """
+    try:
+        cur = mysql.connection.cursor()
+        cur.callproc('clienteDireccionesListar', [id])
+        direcciones = cur.fetchall()
+        cur.close()
+        return jsonify(direcciones)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 # ==================== PEDIDOS CRUD ====================
 @app.route('/api/pedidos', methods=['GET'])
 @login_required
 def obtener_pedidos():
     """
-    Obtener todos los pedidos - CORREGIDO
+    Obtener todos los pedidos - vía procedimiento
     """
     try:
+        pagina = max(int(request.args.get('pagina', 1)), 1)
+        limite = min(max(int(request.args.get('limite', 10)), 1), 50)
+        estado = request.args.get('estado', '').strip()
+        fecha = request.args.get('fecha', '').strip()
+
+        offset = (pagina - 1) * limite
+
         cur = mysql.connection.cursor()
-        if session['user_role'] == 3:  # Repartidor
-            cur.execute("""
-                SELECT p.*, c.nombre as nombre_cliente, ep.nombre_estado
-                FROM pedidos p
-                JOIN clientes c ON p.id_cliente = c.id_cliente
-                JOIN estados_pedido ep ON p.id_estado_pedido = ep.id_estado_pedido
-                JOIN entregas e ON p.id_pedido = e.id_pedido
-                WHERE e.id_repartidor = %s
-            """, (session['user_id'],))
-        else:
-            cur.execute("""
-                SELECT p.*, c.nombre as nombre_cliente, ep.nombre_estado
-                FROM pedidos p
-                JOIN clientes c ON p.id_cliente = c.id_cliente
-                JOIN estados_pedido ep ON p.id_estado_pedido = ep.id_estado_pedido
-            """)
+        cur.callproc('pedidosListar', [
+            session['user_id'],
+            session['user_role'],
+            estado if estado else None,
+            fecha if fecha else None,
+            offset,
+            limite
+        ])
         pedidos = cur.fetchall()
+
+        paginacion = {
+            'total_registros': len(pedidos),
+            'total_paginas': 1,
+            'limite': limite,
+            'offset_actual': offset
+        }
+
+        if cur.nextset():
+            extra = cur.fetchone()
+            if extra:
+                paginacion = {
+                    'total_registros': extra.get('total_registros', len(pedidos)),
+                    'total_paginas': max(1, extra.get('total_paginas', 1)),
+                    'limite': extra.get('limite', limite),
+                    'offset_actual': extra.get('offset_actual', offset)
+                }
+
         cur.close()
-        return jsonify(pedidos)
+
+        cur_stats = mysql.connection.cursor()
+        cur_stats.callproc('pedidosResumenEstados')
+        estadisticas = cur_stats.fetchone() or {}
+        cur_stats.close()
+
+        total_paginas = max(1, paginacion['total_paginas'])
+
+        return jsonify({
+            'pedidos': pedidos,
+            'paginacion': {
+                'pagina': pagina,
+                'limite': paginacion['limite'],
+                'total_paginas': total_paginas,
+                'total_registros': paginacion['total_registros']
+            },
+            'estadisticas': estadisticas
+        })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -573,32 +631,23 @@ def crear_pedido():
 @login_required
 def obtener_pedido(id):
     """
-    Obtener pedido por ID
+    Obtener pedido por ID vía procedimientos
     """
     try:
         cur = mysql.connection.cursor()
-        cur.execute("""
-            SELECT p.*, c.nombre as nombre_cliente, ep.nombre_estado,
-                   dc.direccion, z.nombre_zona
-            FROM pedidos p
-            JOIN clientes c ON p.id_cliente = c.id_cliente
-            JOIN estados_pedido ep ON p.id_estado_pedido = ep.id_estado_pedido
-            JOIN direcciones_cliente dc ON p.id_direccion_entrega = dc.id_direccion
-            JOIN zonas z ON dc.id_zona = z.id_zona
-            WHERE p.id_pedido = %s
-        """, (id,))
+        cur.callproc('pedidoObtener', [id])
         pedido = cur.fetchone()
-        
-        cur.execute("""
-            SELECT dp.*, pr.nombre_producto, pr.precio_unitario
-            FROM detalle_pedido dp
-            JOIN productos pr ON dp.id_producto = pr.id_producto
-            WHERE dp.id_pedido = %s
-        """, (id,))
-        detalle = cur.fetchall()
-        pedido['detalle'] = detalle
-        
         cur.close()
+
+        if not pedido:
+            return jsonify({'error': 'Pedido no encontrado'}), 404
+
+        cur_detalle = mysql.connection.cursor()
+        cur_detalle.callproc('pedidoDetalleObtener', [id])
+        detalle = cur_detalle.fetchall()
+        cur_detalle.close()
+        pedido['detalles'] = detalle
+
         return jsonify(pedido)
     except Exception as e:
         return jsonify({'error': str(e)}), 500

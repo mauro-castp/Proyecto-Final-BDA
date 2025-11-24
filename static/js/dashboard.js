@@ -69,20 +69,20 @@ class Dashboard {
 
             // Actualizar estadísticas principales
             this.updateStats(statsData.estadisticas);
-            
+
             // Actualizar gráficas con datos reales
             this.updateEntregasChart(pedidosPorEstadoData);
             this.updatePedidosChart(entregasHoyData);
             this.updateZonasChart(entregasPorZonaData);
             this.updateTiemposChart(tiempoPromedioData);
-            
+
             // Actualizar métricas secundarias
             this.updateSecondaryMetrics({
                 incidenciasActivas: incidenciasActivasData,
                 productividad: productividadData,
                 costosPorKM: costosPorKMData
             });
-            
+
             // Actualizar actividad reciente
             this.updateActivity(incidenciasActivasData);
 
@@ -90,14 +90,14 @@ class Dashboard {
 
         } catch (error) {
             console.error('Error loading dashboard:', error);
-            
+
             // Solo mostrar error si es una actualización manual
             if (this.isManualRefresh) {
                 this.showError('Error cargando datos del dashboard');
             }
-            
+
             this.hideLoading();
-            
+
             // Si hay error, cargar datos de respaldo
             this.loadFallbackData();
         }
@@ -122,36 +122,74 @@ class Dashboard {
     }
 
     updateSecondaryMetrics(data) {
-        // Eficiencia de repartidores - usar datos de vProductividadRepartidor
-        if (data.productividad && data.productividad.length > 0) {
-            const eficienciaPromedio = data.productividad.reduce((sum, item) => 
-                sum + parseFloat(item.Tasa_Exito_Porcentaje || 0), 0) / data.productividad.length;
-            
-            document.getElementById('eficienciaRepartidores').textContent = `${Math.round(eficienciaPromedio)}%`;
-            document.getElementById('progressEficiencia').style.width = `${Math.round(eficienciaPromedio)}%`;
-        }
+        try {
+            // Eficiencia de repartidores - usar datos de vProductividadRepartidor
+            const eficienciaElement = document.getElementById('eficienciaRepartidores');
+            const progressEficiencia = document.getElementById('progressEficiencia');
 
-        // Costo por KM - usar datos de vCostosPorKM
-        if (data.costosPorKM && data.costosPorKM.length > 0) {
-            const costoPromedio = data.costosPorKM.reduce((sum, item) => 
-                sum + parseFloat(item.Costo_Por_KM || 0), 0) / data.costosPorKM.length;
-            document.getElementById('costoPorKm').textContent = `$${costoPromedio.toFixed(2)}`;
-            
-            // Calcular cambio porcentual (simulado, ya que no tenemos histórico)
-            const cambio = (Math.random() * 10 - 5).toFixed(1); // Entre -5% y +5%
+            if (eficienciaElement && progressEficiencia) {
+                if (data.productividad && data.productividad.length > 0) {
+                    const eficienciaPromedio = data.productividad.reduce((sum, item) =>
+                        sum + parseFloat(item.Tasa_Exito_Porcentaje || 0), 0) / data.productividad.length;
+
+                    eficienciaElement.textContent = `${Math.round(eficienciaPromedio)}%`;
+                    progressEficiencia.style.width = `${Math.round(eficienciaPromedio)}%`;
+                } else {
+                    // Valores por defecto si no hay datos
+                    eficienciaElement.textContent = '0%';
+                    progressEficiencia.style.width = '0%';
+                }
+            } else {
+                console.warn('Elementos de eficiencia no encontrados');
+            }
+
+            // Costo por KM - usar datos de vCostosPorKM
+            const costoElement = document.getElementById('costoPorKm');
             const changeElement = document.getElementById('changeCostoKm');
-            changeElement.textContent = `${cambio > 0 ? '+' : ''}${cambio}%`;
-            changeElement.className = cambio > 0 ? 'metric-change positive' : 'metric-change negative';
-        }
 
-        // Incidencias activas - usar datos de vIncidenciasActivas
-        if (data.incidenciasActivas) {
-            const totalIncidencias = data.incidenciasActivas.length;
-            const incidenciasCriticas = data.incidenciasActivas.filter(item => 
-                item.Impacto === 'Crítico' || item.Impacto === 'Alto').length;
-            
-            document.getElementById('incidenciasActivas').textContent = totalIncidencias;
-            document.getElementById('badgeIncidencias').textContent = `${incidenciasCriticas} Críticas`;
+            if (costoElement && changeElement) {
+                if (data.costosPorKM && data.costosPorKM.length > 0) {
+                    const costoPromedio = data.costosPorKM.reduce((sum, item) =>
+                        sum + parseFloat(item.Costo_Por_KM || 0), 0) / data.costosPorKM.length;
+                    costoElement.textContent = `$${costoPromedio.toFixed(2)}`;
+
+                    // Calcular cambio porcentual (simulado, ya que no tenemos histórico)
+                    const cambio = (Math.random() * 10 - 5).toFixed(1); // Entre -5% y +5%
+                    changeElement.textContent = `${cambio > 0 ? '+' : ''}${cambio}%`;
+                    changeElement.className = cambio > 0 ? 'metric-change positive' : 'metric-change negative';
+                } else {
+                    // Valores por defecto si no hay datos
+                    costoElement.textContent = '$0.00';
+                    changeElement.textContent = '0%';
+                    changeElement.className = 'metric-change';
+                }
+            } else {
+                console.warn('Elementos de costo por KM no encontrados');
+            }
+
+            // Incidencias activas - usar datos de vIncidenciasActivas
+            const incidenciasElement = document.getElementById('incidenciasActivas');
+            const badgeIncidencias = document.getElementById('badgeIncidencias');
+
+            if (incidenciasElement && badgeIncidencias) {
+                if (data.incidenciasActivas) {
+                    const totalIncidencias = data.incidenciasActivas.length;
+                    const incidenciasCriticas = data.incidenciasActivas.filter(item =>
+                        item.Impacto === 'Crítico' || item.Impacto === 'Alto').length;
+
+                    incidenciasElement.textContent = totalIncidencias;
+                    badgeIncidencias.textContent = `${incidenciasCriticas} Críticas`;
+                } else {
+                    // Valores por defecto si no hay datos
+                    incidenciasElement.textContent = '0';
+                    badgeIncidencias.textContent = '0 Críticas';
+                }
+            } else {
+                console.warn('Elementos de incidencias no encontrados');
+            }
+
+        } catch (error) {
+            console.error('Error en updateSecondaryMetrics:', error);
         }
     }
 
@@ -164,89 +202,87 @@ class Dashboard {
     }
 
     updateEntregasChart(data = null) {
-        // Si no hay datos, usar datos por defecto
-        if (!data || data.length === 0) {
-            data = [
-                { nombre_estado: 'Entregado', Total_Pedidos: 65 },
-                { nombre_estado: 'En Camino', Total_Pedidos: 20 },
-                { nombre_estado: 'Pendiente', Total_Pedidos: 10 },
-                { nombre_estado: 'Fallido', Total_Pedidos: 5 }
-            ];
-        }
+        try {
+            const containerId = "chartEntregas";
 
-        // Transformar datos para Highcharts
-        const chartData = data.map(item => ({
-            name: item.nombre_estado,
-            y: item.Total_Pedidos
-        }));
+            // Si no llegan datos, usar datos por defecto
+            if (!data || data.length === 0) {
+                data = [
+                    { nombre_estado: "Entregado", Total_Pedidos: 65 },
+                    { nombre_estado: "En Camino", Total_Pedidos: 20 },
+                    { nombre_estado: "Pendiente", Total_Pedidos: 10 },
+                    { nombre_estado: "Cancelado", Total_Pedidos: 5 }
+                ];
+            }
 
-        // Colores para cada estado
-        const colors = {
-            'Entregado': '#27ae60',
-            'En Camino': '#3498db',
-            'Pendiente': '#f39c12',
-            'Fallido': '#e74c3c'
-        };
+            // Convertimos la data al formato de Highcharts
+            const chartData = data.map(item => ({
+                name: item.nombre_estado,
+                y: item.Total_Pedidos
+            }));
 
-        // Asignar colores según el estado
-        chartData.forEach(item => {
-            item.color = colors[item.name] || '#7f8c8d';
-        });
+            // Si no hay valores válidos
+            if (chartData.length === 0) {
+                return mostrarMensajeGraficoVacio(containerId);
+            }
 
-        // Destruir chart anterior si existe
-        if (this.charts.entregas) {
-            this.charts.entregas.destroy();
-        }
-
-        this.charts.entregas = Highcharts.chart('chartEntregas', {
-            chart: {
-                type: 'pie',
-                backgroundColor: 'transparent'
-            },
-            title: { text: null },
-            tooltip: {
-                pointFormat: '<b>{point.percentage:.1f}%</b>'
-            },
-            plotOptions: {
-                pie: {
-                    allowPointSelect: true,
-                    cursor: 'pointer',
-                    dataLabels: {
-                        enabled: true,
-                        format: '<b>{point.name}</b>: {point.percentage:.1f}%',
-                        distance: -30,
-                        style: {
-                            fontWeight: 'bold',
-                            color: 'white',
-                            textOutline: '1px contrast'
+            // Renderizamos gráfico Pie
+            Highcharts.chart(containerId, {
+                chart: {
+                    type: "pie",
+                    backgroundColor: "transparent"
+                },
+                title: {
+                    text: "Pedidos por estado"
+                },
+                tooltip: {
+                    pointFormat: "<b>{point.percentage:.1f}%</b> ({point.y} pedidos)"
+                },
+                accessibility: {
+                    enabled: false
+                },
+                plotOptions: {
+                    pie: {
+                        allowPointSelect: true,
+                        cursor: "pointer",
+                        dataLabels: {
+                            enabled: true,
+                            format: "<b>{point.name}</b>: {point.percentage:.1f}%"
                         }
-                    },
-                    showInLegend: true
-                }
-            },
-            legend: {
-                layout: 'vertical',
-                align: 'right',
-                verticalAlign: 'middle'
-            },
-            series: [{
-                name: 'Pedidos',
-                colorByPoint: true,
-                data: chartData
-            }],
-            credits: { enabled: false }
-        });
+                    }
+                },
+                colors: [
+                    "#4CAF50", // Verde
+                    "#2196F3", // Azul
+                    "#FFC107", // Amarillo
+                    "#F44336", // Rojo
+                    "#9C27B0", // Morado
+                    "#FF9800"  // Naranja
+                ],
+                series: [{
+                    name: "Pedidos",
+                    colorByPoint: true,
+                    data: chartData
+                }]
+            });
+
+        } catch (error) {
+            console.error("Error actualizando gráfico:", error);
+            mostrarErrorGrafico("chartEntregas", "No se pudo cargar el gráfico");
+        }
     }
+
+
 
     updatePedidosChart(data = null) {
         // Agrupar entregas por hora del día
         const entregasPorHora = {};
-        
+
         if (data && data.length > 0) {
             data.forEach(entrega => {
                 const hora = new Date(entrega.fecha_estimada_entrega).getHours();
-                const rangoHora = `${hora}:00 - ${hora+1}:00`;
-                
+                const rangoHora = `${hora}:00 - ${hora + 1}:00`;
+
                 if (!entregasPorHora[rangoHora]) {
                     entregasPorHora[rangoHora] = 0;
                 }
@@ -255,7 +291,7 @@ class Dashboard {
         } else {
             // Datos de ejemplo si no hay datos reales
             for (let i = 8; i <= 18; i++) {
-                entregasPorHora[`${i}:00 - ${i+1}:00`] = Math.floor(Math.random() * 10) + 1;
+                entregasPorHora[`${i}:00 - ${i + 1}:00`] = Math.floor(Math.random() * 10) + 1;
             }
         }
 
@@ -375,7 +411,7 @@ class Dashboard {
         }
 
         const tiempoPromedio = parseFloat(data.Tiempo_Promedio_Minutos);
-        
+
         // Crear distribución basada en el tiempo promedio
         let distribucion;
         if (tiempoPromedio < 30) {
@@ -446,7 +482,7 @@ class Dashboard {
 
     updateActivity(data = null) {
         const activityList = document.getElementById('activityList');
-        
+
         // Si no hay datos, usar datos por defecto
         if (!data || data.length === 0) {
             data = [
@@ -455,36 +491,36 @@ class Dashboard {
                     title: 'Entrega Exitosa',
                     description: 'Pedido #1234 entregado a Juan Pérez',
                     time: 'Hace 5 minutos',
-                    color: '#27ae60'
+                    colors: '#27ae60'
                 },
                 {
                     icon: 'fa-truck',
                     title: 'En Camino',
                     description: 'Pedido #1235 asignado a repartidor',
                     time: 'Hace 15 minutos',
-                    color: '#3498db'
+                    colors: '#3498db'
                 },
                 {
                     icon: 'fa-exclamation-triangle',
                     title: 'Incidencia Reportada',
                     description: 'Bloqueo vial en Zona Norte',
                     time: 'Hace 25 minutos',
-                    color: '#f39c12'
+                    colors: '#f39c12'
                 },
                 {
                     icon: 'fa-shopping-cart',
                     title: 'Nuevo Pedido',
                     description: 'Pedido #1236 creado por María García',
                     time: 'Hace 1 hora',
-                    color: '#9b59b6'
+                    colors: '#9b59b6'
                 }
             ];
         } else {
             // Transformar datos de incidencias a formato de actividad
             data = data.slice(0, 4).map(incidencia => {
                 let icon, color;
-                
-                switch(incidencia.Tipo_Incidencia) {
+
+                switch (incidencia.Tipo_Incidencia) {
                     case 'Bloqueo Vial':
                         icon = 'fa-road';
                         color = '#e74c3c';
@@ -501,7 +537,7 @@ class Dashboard {
                         icon = 'fa-exclamation-triangle';
                         color = '#f39c12';
                 }
-                
+
                 // Calcular tiempo transcurrido
                 const fechaInicio = new Date(incidencia.fecha_inicio);
                 const ahora = new Date();
@@ -509,7 +545,7 @@ class Dashboard {
                 const diffMins = Math.floor(diffMs / 60000);
                 const diffHours = Math.floor(diffMins / 60);
                 const diffDays = Math.floor(diffHours / 24);
-                
+
                 let tiempoTranscurrido;
                 if (diffMins < 60) {
                     tiempoTranscurrido = `Hace ${diffMins} minutos`;
@@ -518,7 +554,7 @@ class Dashboard {
                 } else {
                     tiempoTranscurrido = `Hace ${diffDays} días`;
                 }
-                
+
                 return {
                     icon: icon,
                     title: incidencia.Tipo_Incidencia,
@@ -551,9 +587,9 @@ class Dashboard {
             rutas_activas: 12,
             tasa_exito: 85
         });
-        
+
         this.updateSecondaryMetrics({});
-        
+
         // Cargar gráficas con datos de respaldo
         this.updateEntregasChart();
         this.updatePedidosChart();
@@ -577,7 +613,7 @@ class Dashboard {
     showError(message) {
         // Implementar notificación de error que no afecte el CSS
         console.error('Dashboard Error:', message);
-        
+
         // Crear un contenedor específico para notificaciones si no existe
         let notificationContainer = document.getElementById('notification-container');
         if (!notificationContainer) {
@@ -590,7 +626,7 @@ class Dashboard {
             notificationContainer.style.maxWidth = '300px';
             document.body.appendChild(notificationContainer);
         }
-        
+
         // Crear la notificación de error
         const notification = document.createElement('div');
         notification.className = 'notification error';
@@ -601,10 +637,10 @@ class Dashboard {
         notification.style.marginBottom = '10px';
         notification.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
         notification.textContent = message;
-        
+
         // Agregar la notificación al contenedor
         notificationContainer.appendChild(notification);
-        
+
         // Eliminar la notificación después de 5 segundos
         setTimeout(() => {
             notification.style.opacity = '0';

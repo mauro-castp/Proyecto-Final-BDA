@@ -5,6 +5,8 @@ class PedidosApp {
         this.productos = [];
         this.paginaActual = 1;
         this.totalPaginas = 1;
+        this.totalRegistros = 0;
+        this.registrosPorPagina = 10;
         this.filtros = {
             estado: '',
             fecha: ''
@@ -27,6 +29,13 @@ class PedidosApp {
         document.getElementById('filtroFecha').addEventListener('change', (e) => {
             this.filtros.fecha = e.target.value;
         });
+
+        const clienteSelect = document.getElementById('clienteSelect');
+        if (clienteSelect) {
+            clienteSelect.addEventListener('change', (e) => {
+                this.cargarDireccionesCliente(e.target.value);
+            });
+        }
 
         // Paginación
         document.getElementById('btnAnterior').addEventListener('click', () => {
@@ -72,6 +81,7 @@ class PedidosApp {
 
             const params = new URLSearchParams({
                 pagina: this.paginaActual,
+                limite: this.registrosPorPagina,
                 ...this.filtros
             });
 
@@ -80,11 +90,13 @@ class PedidosApp {
 
             const data = await response.json();
             this.pedidos = data.pedidos || [];
-            this.totalPaginas = data.totalPaginas || 1;
+            this.totalPaginas = data.paginacion?.total_paginas || 1;
+            this.totalRegistros = data.paginacion?.total_registros ?? this.pedidos.length;
+            this.registrosPorPagina = data.paginacion?.limite || this.registrosPorPagina;
 
             this.actualizarTabla();
-            this.actualizarEstadisticas(data.estadisticas);
-            this.actualizarPaginacion();
+            this.actualizarEstadisticas(data.estadisticas || {});
+            this.actualizarPaginacion(data.paginacion);
 
         } catch (error) {
             console.error('Error cargando pedidos:', error);
@@ -102,6 +114,45 @@ class PedidosApp {
         const response = await fetch('/api/productos');
         if (!response.ok) throw new Error('Error cargando productos');
         this.productos = await response.json();
+    }
+
+    resetDireccionesSelect() {
+        const select = document.getElementById('direccionEntrega');
+        if (!select) return;
+        select.innerHTML = '<option value="">Seleccionar dirección...</option>';
+        select.value = '';
+        select.disabled = true;
+    }
+
+    async cargarDireccionesCliente(clienteId) {
+        const select = document.getElementById('direccionEntrega');
+        if (!select) return;
+
+        this.resetDireccionesSelect();
+        if (!clienteId) return;
+
+        try {
+            const response = await fetch(`/api/clientes/${clienteId}/direcciones`);
+            if (!response.ok) throw new Error('Error cargando direcciones');
+            const direcciones = await response.json();
+
+            if (direcciones.length === 0) {
+                select.innerHTML += '<option value="" disabled>Sin direcciones registradas</option>';
+                select.disabled = false;
+                return;
+            }
+
+            select.innerHTML += direcciones.map(dir => `
+                <option value="${dir.id_direccion}">
+                    ${dir.direccion}${dir.es_principal ? ' (Principal)' : ''}
+                </option>
+            `).join('');
+            select.disabled = false;
+        } catch (error) {
+            console.error('Error cargando direcciones:', error);
+            this.mostrarError('No se pudieron cargar las direcciones del cliente');
+            select.disabled = false;
+        }
     }
 
     actualizarTabla() {
@@ -129,7 +180,7 @@ class PedidosApp {
                 <td>${pedido.cantidad_productos || 0} productos</td>
                 <td>$${this.formatearPrecio(pedido.total_pedido || 0)}</td>
                 <td>
-                    <span class="estado-badge estado-${pedido.estado_nombre?.toLowerCase() || 'pendiente'}">
+                    <span class="estado-badge estado-${(pedido.estado_nombre || 'pendiente').toLowerCase().replace(/\s+/g, '-')}">
                         ${pedido.estado_nombre || 'Pendiente'}
                     </span>
                 </td>
@@ -169,24 +220,31 @@ class PedidosApp {
         document.getElementById('pedidosCompletados').textContent = estadisticas.completados || 0;
     }
 
-    actualizarPaginacion() {
+    actualizarPaginacion(paginacion = {}) {
+        if (paginacion) {
+            this.totalPaginas = paginacion.total_paginas || this.totalPaginas;
+            this.totalRegistros = paginacion.total_registros ?? this.totalRegistros;
+            this.registrosPorPagina = paginacion.limite || this.registrosPorPagina;
+        }
+
         const btnAnterior = document.getElementById('btnAnterior');
         const btnSiguiente = document.getElementById('btnSiguiente');
         const paginationNumbers = document.getElementById('paginationNumbers');
 
-        btnAnterior.disabled = this.paginaActual === 1;
-        btnSiguiente.disabled = this.paginaActual === this.totalPaginas;
+        const totalPaginas = Math.max(1, this.totalPaginas || 1);
+        const noRegistros = this.totalRegistros === 0;
 
-        // Actualizar información
-        const desde = ((this.paginaActual - 1) * 10) + 1;
-        const hasta = Math.min(this.paginaActual * 10, this.pedidos.length * this.paginaActual);
+        btnAnterior.disabled = this.paginaActual <= 1 || noRegistros;
+        btnSiguiente.disabled = this.paginaActual >= totalPaginas || noRegistros;
+
+        const desde = noRegistros ? 0 : ((this.paginaActual - 1) * this.registrosPorPagina) + 1;
+        const hasta = noRegistros ? 0 : Math.min(this.paginaActual * this.registrosPorPagina, this.totalRegistros);
         document.getElementById('mostrandoDesde').textContent = desde;
         document.getElementById('mostrandoHasta').textContent = hasta;
-        document.getElementById('totalRegistros').textContent = this.pedidos.length * this.totalPaginas;
+        document.getElementById('totalRegistros').textContent = this.totalRegistros;
 
-        // Números de página
         let paginasHTML = '';
-        for (let i = 1; i <= this.totalPaginas; i++) {
+        for (let i = 1; i <= totalPaginas; i++) {
             paginasHTML += `
                 <button class="page-number ${i === this.paginaActual ? 'active' : ''}" 
                         onclick="pedidosApp.irAPagina(${i})">
@@ -198,6 +256,9 @@ class PedidosApp {
     }
 
     irAPagina(pagina) {
+        if (pagina === this.paginaActual || pagina < 1 || pagina > this.totalPaginas) {
+            return;
+        }
         this.paginaActual = pagina;
         this.cargarPedidos();
     }
@@ -211,6 +272,7 @@ class PedidosApp {
     mostrarModalNuevoPedido() {
         this.limpiarFormulario();
         this.cargarClientesModal();
+        this.resetDireccionesSelect();
         this.cargarProductosModal();
         document.getElementById('modalNuevoPedido').style.display = 'block';
     }
@@ -300,6 +362,9 @@ class PedidosApp {
         let subtotal = 0;
 
         document.querySelectorAll('.producto-item').forEach(item => {
+            if (item.id === 'productoPlantilla' || item.style.display === 'none') {
+                return;
+            }
             const subtotalTexto = item.querySelector('.subtotal').textContent;
             subtotal += parseFloat(subtotalTexto.replace('$', '')) || 0;
         });
@@ -345,37 +410,40 @@ class PedidosApp {
         const productos = [];
 
         document.querySelectorAll('.producto-item').forEach(item => {
+            if (item.id === 'productoPlantilla' || item.style.display === 'none') {
+                return;
+            }
+
             const select = item.querySelector('.producto-select');
             const cantidadInput = item.querySelector('.cantidad-input');
 
             if (select.value && cantidadInput.value) {
                 productos.push({
-                    producto_id: parseInt(select.value),
+                    producto: parseInt(select.value),
                     cantidad: parseInt(cantidadInput.value)
                 });
             }
         });
 
         return {
-            cliente_id: parseInt(document.getElementById('clienteSelect').value),
-            direccion_entrega: document.getElementById('direccionEntrega').value,
-            items_json: JSON.stringify(productos)
+            id_cliente: parseInt(document.getElementById('clienteSelect').value),
+            id_direccion: parseInt(document.getElementById('direccionEntrega').value),
+            items: productos
         };
     }
 
     validarFormulario(formData) {
-        if (!formData.cliente_id) {
+        if (!formData.id_cliente) {
             this.mostrarError('Por favor seleccione un cliente');
             return false;
         }
 
-        if (!formData.direccion_entrega) {
+        if (!formData.id_direccion) {
             this.mostrarError('Por favor seleccione una dirección de entrega');
             return false;
         }
 
-        const productos = JSON.parse(formData.items_json);
-        if (productos.length === 0) {
+        if (!Array.isArray(formData.items) || formData.items.length === 0) {
             this.mostrarError('Por favor agregue al menos un producto');
             return false;
         }
@@ -388,6 +456,7 @@ class PedidosApp {
         document.getElementById('listaProductos').innerHTML = '';
         this.agregarProducto(); // Agregar un producto por defecto
         this.actualizarResumen();
+        this.resetDireccionesSelect();
     }
 
     // Otras funcionalidades
@@ -420,7 +489,7 @@ class PedidosApp {
             <div class="detalles-pedido">
                 <div class="detalles-header">
                     <h4>Pedido #${pedido.id_pedido}</h4>
-                    <span class="estado-badge estado-${pedido.estado_nombre?.toLowerCase() || 'pendiente'}">
+                    <span class="estado-badge estado-${(pedido.estado_nombre || 'pendiente').toLowerCase().replace(/\s+/g, '-')}">
                         ${pedido.estado_nombre || 'Pendiente'}
                     </span>
                 </div>

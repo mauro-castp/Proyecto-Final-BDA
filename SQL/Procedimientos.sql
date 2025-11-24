@@ -37,6 +37,63 @@ BEGIN
 END $$
 DELIMITER ;
 
+-- clientesActivosListar
+DELIMITER $$
+CREATE PROCEDURE clientesActivosListar()
+BEGIN
+    SELECT 
+        c.id_cliente,
+        c.nombre,
+        c.telefono,
+        c.email,
+        dc.id_direccion,
+        dc.direccion,
+        z.nombre_zona,
+        c.id_estado_cliente
+    FROM clientes c
+    LEFT JOIN direcciones_cliente dc ON c.id_cliente = dc.id_cliente
+    LEFT JOIN zonas z ON dc.id_zona = z.id_zona
+    WHERE c.id_estado_cliente = 1
+    ORDER BY c.nombre;
+END $$
+DELIMITER ;
+
+-- clienteDireccionesListar
+DELIMITER $$
+CREATE PROCEDURE clienteDireccionesListar(
+    IN p_id_cliente INT
+)
+BEGIN
+    SELECT 
+        id_direccion,
+        direccion,
+        id_zona,
+        es_principal,
+        id_estado_direccion
+    FROM direcciones_cliente
+    WHERE id_cliente = p_id_cliente
+      AND id_estado_direccion IN (1, 3)
+    ORDER BY es_principal DESC, direccion ASC;
+END $$
+DELIMITER ;
+
+-- productosActivosListar
+DELIMITER $$
+CREATE PROCEDURE productosActivosListar()
+BEGIN
+    SELECT 
+        id_producto,
+        nombre,
+        descripcion,
+        precio_unitario,
+        peso_kg,
+        volumen_m3
+    FROM productos
+    WHERE id_estado_producto = 1
+    ORDER BY nombre;
+END $$
+DELIMITER ;
+
 -- pedidoCrear
 
 DELIMITER $$
@@ -93,6 +150,146 @@ BEGIN
 
     COMMIT;
     SELECT v_pedido_id AS id_pedido;
+END $$
+DELIMITER ;
+
+-- pedidosListar
+DELIMITER $$
+CREATE PROCEDURE pedidosListar(
+    IN p_id_usuario INT,
+    IN p_id_rol INT,
+    IN p_estado VARCHAR(50),
+    IN p_fecha DATE,
+    IN p_offset INT,
+    IN p_limite INT
+)
+BEGIN
+    DECLARE v_offset INT DEFAULT 0;
+    DECLARE v_limite INT DEFAULT 10;
+    DECLARE v_total INT DEFAULT 0;
+    DECLARE v_total_paginas INT DEFAULT 1;
+
+    IF p_offset IS NOT NULL AND p_offset >= 0 THEN
+        SET v_offset = p_offset;
+    END IF;
+
+    IF p_limite IS NOT NULL AND p_limite > 0 THEN
+        SET v_limite = LEAST(p_limite, 50);
+    END IF;
+
+    SELECT COUNT(DISTINCT p.id_pedido)
+    INTO v_total
+    FROM pedidos p
+    LEFT JOIN entregas e ON e.id_pedido = p.id_pedido
+    JOIN estados_pedido ep ON p.id_estado_pedido = ep.id_estado_pedido
+    WHERE (p_estado IS NULL OR p_estado = '' OR LOWER(ep.nombre_estado) = LOWER(p_estado))
+      AND (p_fecha IS NULL OR DATE(p.fecha_pedido) = p_fecha)
+      AND (p_id_rol <> 3 OR e.id_repartidor = p_id_usuario);
+
+    IF v_total = 0 THEN
+        SET v_total_paginas = 1;
+    ELSE
+        SET v_total_paginas = CEILING(v_total / v_limite);
+    END IF;
+
+    SELECT 
+        p.id_pedido,
+        p.fecha_pedido,
+        p.total_pedido,
+        p.peso_total,
+        p.volumen_total,
+        c.nombre AS cliente_nombre,
+        c.email AS cliente_email,
+        c.telefono AS cliente_telefono,
+        ep.nombre_estado AS estado_nombre,
+        COALESCE(SUM(dp.cantidad), 0) AS cantidad_productos
+    FROM pedidos p
+    JOIN clientes c ON p.id_cliente = c.id_cliente
+    JOIN estados_pedido ep ON p.id_estado_pedido = ep.id_estado_pedido
+    LEFT JOIN detalle_pedido dp ON dp.id_pedido = p.id_pedido
+    LEFT JOIN entregas e ON e.id_pedido = p.id_pedido
+    WHERE (p_estado IS NULL OR p_estado = '' OR LOWER(ep.nombre_estado) = LOWER(p_estado))
+      AND (p_fecha IS NULL OR DATE(p.fecha_pedido) = p_fecha)
+      AND (p_id_rol <> 3 OR e.id_repartidor = p_id_usuario)
+    GROUP BY 
+        p.id_pedido,
+        p.fecha_pedido,
+        p.total_pedido,
+        p.peso_total,
+        p.volumen_total,
+        c.nombre,
+        c.email,
+        c.telefono,
+        ep.nombre_estado
+    ORDER BY p.fecha_pedido DESC
+    LIMIT v_limite OFFSET v_offset;
+
+    SELECT 
+        v_total AS total_registros,
+        v_total_paginas AS total_paginas,
+        v_limite AS limite,
+        v_offset AS offset_actual;
+END $$
+DELIMITER ;
+
+-- pedidosResumenEstados
+DELIMITER $$
+CREATE PROCEDURE pedidosResumenEstados()
+BEGIN
+    SELECT 
+        COUNT(*) AS total,
+        SUM(CASE WHEN ep.nombre_estado IN ('pendiente', 'confirmado', 'en preparacion') THEN 1 ELSE 0 END) AS pendientes,
+        SUM(CASE WHEN ep.nombre_estado IN ('listo para entrega', 'en camino') THEN 1 ELSE 0 END) AS proceso,
+        SUM(CASE WHEN ep.nombre_estado = 'entregado' THEN 1 ELSE 0 END) AS completados
+    FROM pedidos p
+    JOIN estados_pedido ep ON p.id_estado_pedido = ep.id_estado_pedido;
+END $$
+DELIMITER ;
+
+-- pedidoObtener
+DELIMITER $$
+CREATE PROCEDURE pedidoObtener(
+    IN p_id_pedido INT
+)
+BEGIN
+    SELECT 
+        p.id_pedido,
+        p.fecha_pedido,
+        p.total_pedido,
+        p.peso_total,
+        p.volumen_total,
+        p.id_estado_pedido,
+        ep.nombre_estado AS estado_nombre,
+        c.nombre AS cliente_nombre,
+        c.email AS cliente_email,
+        c.telefono AS cliente_telefono,
+        dc.direccion AS direccion_entrega,
+        z.nombre_zona
+    FROM pedidos p
+    JOIN clientes c ON p.id_cliente = c.id_cliente
+    JOIN estados_pedido ep ON p.id_estado_pedido = ep.id_estado_pedido
+    JOIN direcciones_cliente dc ON p.id_direccion_entrega = dc.id_direccion
+    JOIN zonas z ON dc.id_zona = z.id_zona
+    WHERE p.id_pedido = p_id_pedido;
+END $$
+DELIMITER ;
+
+-- pedidoDetalleObtener
+DELIMITER $$
+CREATE PROCEDURE pedidoDetalleObtener(
+    IN p_id_pedido INT
+)
+BEGIN
+    SELECT 
+        dp.id_detalle,
+        dp.id_producto,
+        dp.cantidad,
+        dp.subtotal,
+        pr.nombre AS nombre_producto,
+        pr.precio_unitario
+    FROM detalle_pedido dp
+    JOIN productos pr ON dp.id_producto = pr.id_producto
+    WHERE dp.id_pedido = p_id_pedido;
 END $$
 DELIMITER ;
 
