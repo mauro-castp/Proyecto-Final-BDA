@@ -1,7 +1,7 @@
 class ClientsApp {
     constructor() {
         this.clientes = [];
-        this.estadosCliente = [];
+        this.zonas = [];
         this.paginaActual = 1;
         this.totalPaginas = 1;
         this.totalRegistros = 0;
@@ -10,12 +10,12 @@ class ClientsApp {
             estado: '',
             busqueda: ''
         };
-        this.contadorDirecciones = 0;
         this.init();
     }
 
     init() {
         this.bindEvents();
+        this.cargarZonas();
         this.cargarClientes();
     }
 
@@ -27,6 +27,13 @@ class ClientsApp {
 
         document.getElementById('filtroBusqueda').addEventListener('input', (e) => {
             this.filtros.busqueda = e.target.value;
+        });
+
+        // Enter en búsqueda
+        document.getElementById('filtroBusqueda').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                this.aplicarFiltros();
+            }
         });
 
         // Paginación
@@ -52,7 +59,8 @@ class ClientsApp {
             const params = new URLSearchParams({
                 pagina: this.paginaActual,
                 limite: this.registrosPorPagina,
-                ...this.filtros
+                estado: this.filtros.estado,
+                busqueda: this.filtros.busqueda
             });
 
             const response = await fetch(`/api/clientes?${params}`);
@@ -61,7 +69,7 @@ class ClientsApp {
             const data = await response.json();
             this.clientes = data.clientes || [];
             this.totalPaginas = data.paginacion?.total_paginas || 1;
-            this.totalRegistros = data.paginacion?.total_registros ?? this.clientes.length;
+            this.totalRegistros = data.paginacion?.total_registros || 0;
             this.registrosPorPagina = data.paginacion?.limite || this.registrosPorPagina;
 
             this.actualizarTabla();
@@ -74,13 +82,24 @@ class ClientsApp {
         }
     }
 
+    async cargarZonas() {
+        try {
+            const response = await fetch('/api/zonas');
+            if (!response.ok) throw new Error('Error cargando zonas');
+            this.zonas = await response.json();
+        } catch (error) {
+            console.error('Error cargando zonas:', error);
+            // No mostrar error para evitar problemas
+        }
+    }
+
     actualizarTabla() {
         const tbody = document.getElementById('tablaClientes');
 
         if (this.clientes.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="6" class="text-center">
+                    <td colspan="8" class="text-center">
                         <div class="loading-spinner">
                             <i class="fas fa-users"></i>
                             <span>No se encontraron clientes</span>
@@ -101,8 +120,14 @@ class ClientsApp {
                 <td>${cliente.telefono || 'No especificado'}</td>
                 <td>${cliente.email || 'No especificado'}</td>
                 <td>
+                    <div class="direccion-truncada" title="${cliente.direccion || ''}">
+                        ${cliente.direccion ? this.truncarTexto(cliente.direccion, 50) : 'No especificada'}
+                    </div>
+                </td>
+                <td>${cliente.nombre_zona || 'No asignada'}</td>
+                <td>
                     <span class="estado-badge estado-${this.obtenerEstadoClase(cliente.id_estado_cliente)}">
-                        ${this.obtenerEstadoTexto(cliente.id_estado_cliente)}
+                        ${cliente.estado_nombre || 'Inactivo'}
                     </span>
                 </td>
                 <td>${this.formatearFecha(cliente.fecha_creacion)}</td>
@@ -130,13 +155,10 @@ class ClientsApp {
         return estados[idEstado] || 'inactivo';
     }
 
-    obtenerEstadoTexto(idEstado) {
-        const estados = {
-            1: 'Activo',
-            2: 'Inactivo',
-            3: 'Bloqueado'
-        };
-        return estados[idEstado] || 'Inactivo';
+    truncarTexto(texto, longitud) {
+        if (!texto) return '';
+        if (texto.length <= longitud) return texto;
+        return texto.substring(0, longitud) + '...';
     }
 
     actualizarEstadisticas(estadisticas = {}) {
@@ -197,7 +219,7 @@ class ClientsApp {
     // Modal Nuevo Cliente
     mostrarModalNuevoCliente() {
         this.limpiarFormulario();
-        this.agregarDireccion(); // Agregar una dirección por defecto
+        this.cargarZonasModal();
         document.getElementById('modalNuevoCliente').style.display = 'block';
     }
 
@@ -205,35 +227,23 @@ class ClientsApp {
         document.getElementById('modalNuevoCliente').style.display = 'none';
     }
 
-    agregarDireccion() {
-        const lista = document.getElementById('listaDirecciones');
-        const plantilla = document.getElementById('direccionPlantilla');
-        const nuevaDireccion = plantilla.cloneNode(true);
+    cargarZonasModal() {
+        const selectNuevo = document.getElementById('zonaCliente');
+        const selectEditar = document.getElementById('editarZonaCliente');
 
-        this.contadorDirecciones++;
-        nuevaDireccion.style.display = 'block';
-        nuevaDireccion.id = '';
-        nuevaDireccion.querySelector('.direccion-numero').textContent = this.contadorDirecciones;
-
-        lista.appendChild(nuevaDireccion);
-    }
-
-    eliminarDireccion(boton) {
-        const direccionItem = boton.closest('.direccion-item');
-        if (document.querySelectorAll('.direccion-item').length > 1) {
-            direccionItem.remove();
-            this.renumerarDirecciones();
-        } else {
-            this.mostrarError('Debe haber al menos una dirección');
+        if (selectNuevo) {
+            selectNuevo.innerHTML = '<option value="">Seleccionar zona...</option>' +
+                this.zonas.map(zona =>
+                    `<option value="${zona.id_zona}">${zona.nombre_zona}</option>`
+                ).join('');
         }
-    }
 
-    renumerarDirecciones() {
-        const direcciones = document.querySelectorAll('.direccion-item');
-        direcciones.forEach((direccion, index) => {
-            direccion.querySelector('.direccion-numero').textContent = index + 1;
-        });
-        this.contadorDirecciones = direcciones.length;
+        if (selectEditar) {
+            selectEditar.innerHTML = '<option value="">Seleccionar zona...</option>' +
+                this.zonas.map(zona =>
+                    `<option value="${zona.id_zona}">${zona.nombre_zona}</option>`
+                ).join('');
+        }
     }
 
     async crearCliente() {
@@ -252,7 +262,10 @@ class ClientsApp {
                 body: JSON.stringify(formData)
             });
 
-            if (!response.ok) throw new Error('Error creando cliente');
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Error creando cliente');
+            }
 
             const result = await response.json();
             this.mostrarExito('Cliente creado exitosamente');
@@ -261,40 +274,34 @@ class ClientsApp {
 
         } catch (error) {
             console.error('Error creando cliente:', error);
-            this.mostrarError('Error al crear el cliente');
+            this.mostrarError(error.message || 'Error al crear el cliente');
         }
     }
 
     obtenerDatosFormulario() {
-        const direcciones = [];
-
-        document.querySelectorAll('.direccion-item').forEach(item => {
-            const direccion = {
-                direccion: item.querySelector('.direccion-campo').value,
-                ciudad: item.querySelector('.ciudad-campo').value,
-                codigo_postal: item.querySelector('.codigo-postal-campo').value,
-                provincia: item.querySelector('.provincia-campo').value,
-                pais: item.querySelector('.pais-campo').value,
-                es_principal: item.querySelector('.direccion-principal').checked
-            };
-
-            if (direccion.direccion && direccion.ciudad) {
-                direcciones.push(direccion);
-            }
-        });
-
         return {
-            nombre: document.getElementById('nombreCliente').value,
-            telefono: document.getElementById('telefonoCliente').value,
-            email: document.getElementById('emailCliente').value,
-            id_estado_cliente: parseInt(document.getElementById('estadoCliente').value),
-            direcciones: direcciones
+            nombre: document.getElementById('nombreCliente').value.trim(),
+            telefono: document.getElementById('telefonoCliente').value.trim(),
+            email: document.getElementById('emailCliente').value.trim(),
+            direccion: document.getElementById('direccionCliente').value.trim(),
+            id_zona: parseInt(document.getElementById('zonaCliente').value),
+            id_estado_cliente: parseInt(document.getElementById('estadoCliente').value)
         };
     }
 
     validarFormulario(formData) {
-        if (!formData.nombre || formData.nombre.trim() === '') {
+        if (!formData.nombre || formData.nombre === '') {
             this.mostrarError('Por favor ingrese el nombre del cliente');
+            return false;
+        }
+
+        if (!formData.id_zona) {
+            this.mostrarError('Por favor seleccione una zona');
+            return false;
+        }
+
+        if (!formData.direccion || formData.direccion === '') {
+            this.mostrarError('Por favor ingrese la dirección del cliente');
             return false;
         }
 
@@ -303,24 +310,22 @@ class ClientsApp {
             return false;
         }
 
-        if (!Array.isArray(formData.direcciones) || formData.direcciones.length === 0) {
-            this.mostrarError('Por favor agregue al menos una dirección válida');
+        // Validar email si se proporciona
+        if (formData.email && !this.validarEmail(formData.email)) {
+            this.mostrarError('Por favor ingrese un email válido');
             return false;
-        }
-
-        // Validar que al menos una dirección esté marcada como principal
-        const direccionesPrincipales = formData.direcciones.filter(dir => dir.es_principal);
-        if (direccionesPrincipales.length === 0 && formData.direcciones.length > 0) {
-            formData.direcciones[0].es_principal = true;
         }
 
         return true;
     }
 
+    validarEmail(email) {
+        const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return re.test(email);
+    }
+
     limpiarFormulario() {
         document.getElementById('formNuevoCliente').reset();
-        document.getElementById('listaDirecciones').innerHTML = '';
-        this.contadorDirecciones = 0;
     }
 
     // Otras funcionalidades
@@ -354,7 +359,7 @@ class ClientsApp {
                 <div class="detalles-header">
                     <h4>Cliente #${cliente.id_cliente}</h4>
                     <span class="estado-badge estado-${this.obtenerEstadoClase(cliente.id_estado_cliente)}">
-                        ${this.obtenerEstadoTexto(cliente.id_estado_cliente)}
+                        ${cliente.estado_nombre || 'Inactivo'}
                     </span>
                 </div>
                 
@@ -368,24 +373,12 @@ class ClientsApp {
                         <p><strong>Última Actualización:</strong> ${this.formatearFecha(cliente.fecha_actualizacion)}</p>
                     </div>
                     
-                    ${cliente.direcciones && cliente.direcciones.length > 0 ? `
+                    ${cliente.direccion ? `
                         <div class="info-group">
-                            <h5>Direcciones</h5>
-                            <div class="direcciones-lista">
-                                ${cliente.direcciones.map(direccion => `
-                                    <div class="direccion-detalle ${direccion.es_principal ? 'direccion-principal' : ''}">
-                                        <div class="direccion-header">
-                                            <strong>${direccion.direccion}</strong>
-                                            ${direccion.es_principal ? '<span class="badge-principal">Principal</span>' : ''}
-                                        </div>
-                                        <div class="direccion-info">
-                                            <span>${direccion.ciudad}</span>
-                                            ${direccion.codigo_postal ? `<span>CP: ${direccion.codigo_postal}</span>` : ''}
-                                            ${direccion.provincia ? `<span>${direccion.provincia}</span>` : ''}
-                                            ${direccion.pais ? `<span>${direccion.pais}</span>` : ''}
-                                        </div>
-                                    </div>
-                                `).join('')}
+                            <h5>Dirección Principal</h5>
+                            <div class="direccion-completa">
+                                <p><strong>Dirección:</strong> ${cliente.direccion}</p>
+                                ${cliente.nombre_zona ? `<p><strong>Zona:</strong> ${cliente.nombre_zona}</p>` : ''}
                             </div>
                         </div>
                     ` : ''}
@@ -395,12 +388,86 @@ class ClientsApp {
     }
 
     async editarCliente(idCliente) {
-        // Implementar edición de cliente
-        this.mostrarExito(`Editar cliente ${idCliente} - Funcionalidad en desarrollo`);
+        try {
+            const response = await fetch(`/api/clientes/${idCliente}`);
+            if (!response.ok) throw new Error('Error cargando datos del cliente');
+
+            const cliente = await response.json();
+            this.mostrarModalEditar(cliente);
+
+        } catch (error) {
+            console.error('Error cargando datos del cliente:', error);
+            this.mostrarError('Error cargando datos del cliente para editar');
+        }
+    }
+
+    mostrarModalEditar(cliente) {
+        document.getElementById('editarIdCliente').value = cliente.id_cliente;
+        document.getElementById('editarNombreCliente').value = cliente.nombre || '';
+        document.getElementById('editarTelefonoCliente').value = cliente.telefono || '';
+        document.getElementById('editarEmailCliente').value = cliente.email || '';
+        document.getElementById('editarDireccionCliente').value = cliente.direccion || '';
+        document.getElementById('editarZonaCliente').value = cliente.id_zona || '';
+        document.getElementById('editarEstadoCliente').value = cliente.id_estado_cliente || 1;
+
+        document.getElementById('modalEditarCliente').style.display = 'block';
+    }
+
+    cerrarModalEditar() {
+        document.getElementById('modalEditarCliente').style.display = 'none';
+    }
+
+    async actualizarCliente() {
+        try {
+            const formData = this.obtenerDatosFormularioEditar();
+
+            if (!this.validarFormularioEditar(formData)) {
+                return;
+            }
+
+            const idCliente = document.getElementById('editarIdCliente').value;
+
+            const response = await fetch(`/api/clientes/${idCliente}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Error actualizando cliente');
+            }
+
+            const result = await response.json();
+            this.mostrarExito('Cliente actualizado exitosamente');
+            this.cerrarModalEditar();
+            this.cargarClientes();
+
+        } catch (error) {
+            console.error('Error actualizando cliente:', error);
+            this.mostrarError(error.message || 'Error al actualizar el cliente');
+        }
+    }
+
+    obtenerDatosFormularioEditar() {
+        return {
+            nombre: document.getElementById('editarNombreCliente').value.trim(),
+            telefono: document.getElementById('editarTelefonoCliente').value.trim(),
+            email: document.getElementById('editarEmailCliente').value.trim(),
+            direccion: document.getElementById('editarDireccionCliente').value.trim(),
+            id_zona: parseInt(document.getElementById('editarZonaCliente').value),
+            id_estado_cliente: parseInt(document.getElementById('editarEstadoCliente').value)
+        };
+    }
+
+    validarFormularioEditar(formData) {
+        return this.validarFormulario(formData);
     }
 
     async eliminarCliente(idCliente) {
-        if (!confirm('¿Está seguro de que desea eliminar este cliente? Esta acción no se puede deshacer.')) {
+        if (!confirm('¿Está seguro de que desea eliminar este cliente? Esta acción cambiará su estado a inactivo.')) {
             return;
         }
 
@@ -409,35 +476,41 @@ class ClientsApp {
                 method: 'DELETE'
             });
 
-            if (!response.ok) throw new Error('Error eliminando cliente');
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Error eliminando cliente');
+            }
 
-            this.mostrarExito('Cliente eliminado exitosamente');
+            const result = await response.json();
+            this.mostrarExito(result.message || 'Cliente eliminado exitosamente');
             this.cargarClientes();
 
         } catch (error) {
             console.error('Error eliminando cliente:', error);
-            this.mostrarError('Error al eliminar el cliente');
+            this.mostrarError(error.message || 'Error al eliminar el cliente');
         }
     }
 
     // Utilidades
     formatearFecha(fechaString) {
         if (!fechaString) return 'N/A';
-        const fecha = new Date(fechaString);
-        return fecha.toLocaleDateString('es-ES', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
+        try {
+            const fecha = new Date(fechaString);
+            return fecha.toLocaleDateString('es-ES', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+        } catch (error) {
+            return 'Fecha inválida';
+        }
     }
 
     mostrarCargando() {
         const tbody = document.getElementById('tablaClientes');
         tbody.innerHTML = `
             <tr>
-                <td colspan="6" class="text-center">
+                <td colspan="8" class="text-center">
                     <div class="loading-spinner">
                         <i class="fas fa-spinner fa-spin"></i>
                         <span>Cargando clientes...</span>
@@ -448,13 +521,11 @@ class ClientsApp {
     }
 
     mostrarError(mensaje) {
-        // Implementar sistema de notificaciones
-        alert(`Error: ${mensaje}`);
+        alert('Error: ' + mensaje);
     }
 
     mostrarExito(mensaje) {
-        // Implementar sistema de notificaciones
-        alert(`Éxito: ${mensaje}`);
+        alert('Éxito: ' + mensaje);
     }
 }
 

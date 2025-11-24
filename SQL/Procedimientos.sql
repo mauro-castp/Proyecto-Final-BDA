@@ -1,5 +1,6 @@
 -- clienteCrearActualizar
 
+-- Corrección del procedimiento clienteCrearActualizar
 DELIMITER $$
 CREATE PROCEDURE clienteCrearActualizar(
     IN p_id_cliente INT,
@@ -10,16 +11,17 @@ CREATE PROCEDURE clienteCrearActualizar(
     IN p_id_zona INT
 )
 BEGIN
-    SET p_direccion = TRIM(LOWER(p_direccion));
+    SET p_direccion = TRIM(p_direccion);
 
     IF p_id_cliente IS NULL THEN
-        INSERT INTO clientes(nombre, telefono, email, id_estado)
+        -- CORREGIDO: usar id_estado_cliente en lugar de id_estado
+        INSERT INTO clientes(nombre, telefono, email, id_estado_cliente)
         VALUES(p_nombre, p_telefono, p_email, 1);
         
         SET p_id_cliente = LAST_INSERT_ID();
 
-        INSERT INTO direcciones_cliente(id_cliente, direccion, id_zona, id_estado)
-        VALUES(p_id_cliente, p_direccion, p_id_zona, 1);
+        INSERT INTO direcciones_cliente(id_cliente, direccion, id_zona, id_estado_direccion, es_principal)
+        VALUES(p_id_cliente, p_direccion, p_id_zona, 1, 1);
     ELSE
         UPDATE clientes
         SET nombre = p_nombre,
@@ -30,7 +32,7 @@ BEGIN
         UPDATE direcciones_cliente
         SET direccion = p_direccion,
             id_zona = p_id_zona
-        WHERE id_cliente = p_id_cliente;
+        WHERE id_cliente = p_id_cliente AND es_principal = 1;
     END IF;
 
     SELECT p_id_cliente AS id_cliente;
@@ -49,10 +51,12 @@ BEGIN
         dc.id_direccion,
         dc.direccion,
         z.nombre_zona,
-        c.id_estado_cliente
+        c.id_estado_cliente,
+        ec.nombre_estado AS estado_nombre 
     FROM clientes c
     LEFT JOIN direcciones_cliente dc ON c.id_cliente = dc.id_cliente
     LEFT JOIN zonas z ON dc.id_zona = z.id_zona
+    JOIN estados_cliente ec ON c.id_estado_cliente = ec.id_estado_cliente  
     WHERE c.id_estado_cliente = 1
     ORDER BY c.nombre;
 END $$
@@ -840,9 +844,15 @@ BEGIN
         c.email,
         dc.direccion,
         dc.id_zona,
-        c.id_estado_cliente
+        c.id_estado_cliente,
+        ec.nombre_estado AS estado_nombre,
+        c.fecha_creacion,
+        c.fecha_actualizacion,
+        z.nombre_zona
     FROM clientes c
-    LEFT JOIN direcciones_cliente dc ON c.id_cliente = dc.id_cliente
+    LEFT JOIN direcciones_cliente dc ON c.id_cliente = dc.id_cliente AND dc.es_principal = 1
+    LEFT JOIN zonas z ON dc.id_zona = z.id_zona
+    JOIN estados_cliente ec ON c.id_estado_cliente = ec.id_estado_cliente 
     WHERE c.id_cliente = p_id_cliente;
 END $$
 DELIMITER ;
@@ -1068,4 +1078,109 @@ BEGIN
     SELECT * FROM vProductividadRepartidor;
 END $$
 
+DELIMITER ;
+
+-- Procedimiento para obtener clientes con paginación y filtros
+DELIMITER $$
+CREATE PROCEDURE clientesListar(
+    IN p_estado VARCHAR(50),
+    IN p_busqueda VARCHAR(200),
+    IN p_offset INT,
+    IN p_limite INT
+)
+BEGIN
+    DECLARE v_offset INT DEFAULT 0;
+    DECLARE v_limite INT DEFAULT 10;
+    DECLARE v_total INT DEFAULT 0;
+    DECLARE v_total_paginas INT DEFAULT 1;
+
+    IF p_offset IS NOT NULL AND p_offset >= 0 THEN
+        SET v_offset = p_offset;
+    END IF;
+
+    IF p_limite IS NOT NULL AND p_limite > 0 THEN
+        SET v_limite = LEAST(p_limite, 50);
+    END IF;
+
+    -- Contar total de registros
+    SELECT COUNT(*)
+    INTO v_total
+    FROM clientes c
+    WHERE (p_estado IS NULL OR p_estado = '' OR 
+           (p_estado = 'activo' AND c.id_estado_cliente = 1) OR
+           (p_estado = 'inactivo' AND c.id_estado_cliente = 2) OR
+           (p_estado = 'bloqueado' AND c.id_estado_cliente = 3))
+      AND (p_busqueda IS NULL OR p_busqueda = '' OR 
+           c.nombre LIKE CONCAT('%', p_busqueda, '%') OR
+           c.email LIKE CONCAT('%', p_busqueda, '%') OR
+           c.telefono LIKE CONCAT('%', p_busqueda, '%'));
+
+    -- Calcular total de páginas
+    IF v_total = 0 THEN
+        SET v_total_paginas = 1;
+    ELSE
+        SET v_total_paginas = CEILING(v_total / v_limite);
+    END IF;
+
+    -- Obtener clientes
+    SELECT 
+        c.id_cliente,
+        c.nombre,
+        c.telefono,
+        c.email,
+        c.id_estado_cliente,
+        ec.nombre_estado AS estado_nombre,
+        c.fecha_creacion,
+        c.fecha_actualizacion,
+        dc.direccion,
+        z.nombre_zona
+    FROM clientes c
+    JOIN estados_cliente ec ON c.id_estado_cliente = ec.id_estado_cliente
+    LEFT JOIN direcciones_cliente dc ON c.id_cliente = dc.id_cliente AND dc.es_principal = 1
+    LEFT JOIN zonas z ON dc.id_zona = z.id_zona
+    WHERE (p_estado IS NULL OR p_estado = '' OR 
+           (p_estado = 'activo' AND c.id_estado_cliente = 1) OR
+           (p_estado = 'inactivo' AND c.id_estado_cliente = 2) OR
+           (p_estado = 'bloqueado' AND c.id_estado_cliente = 3))
+      AND (p_busqueda IS NULL OR p_busqueda = '' OR 
+           c.nombre LIKE CONCAT('%', p_busqueda, '%') OR
+           c.email LIKE CONCAT('%', p_busqueda, '%') OR
+           c.telefono LIKE CONCAT('%', p_busqueda, '%'))
+    ORDER BY c.nombre
+    LIMIT v_limite OFFSET v_offset;
+
+    -- Retornar información de paginación
+    SELECT 
+        v_total AS total_registros,
+        v_total_paginas AS total_paginas,
+        v_limite AS limite,
+        v_offset AS offset_actual;
+END $$
+DELIMITER ;
+
+-- Procedimiento para estadísticas de clientes
+DELIMITER $$
+CREATE PROCEDURE clientesResumenEstados()
+BEGIN
+    SELECT 
+        COUNT(*) AS total,
+        SUM(CASE WHEN id_estado_cliente = 1 THEN 1 ELSE 0 END) AS activos,
+        SUM(CASE WHEN id_estado_cliente = 2 THEN 1 ELSE 0 END) AS inactivos,
+        SUM(CASE WHEN id_estado_cliente = 3 THEN 1 ELSE 0 END) AS bloqueados
+    FROM clientes;
+END $$
+DELIMITER ;
+
+-- Procedimiento para obtener zonas activas
+DELIMITER $$
+CREATE PROCEDURE zonasActivasListar()
+BEGIN
+    SELECT 
+        id_zona,
+        nombre_zona,
+        descripcion
+    FROM zonas
+    WHERE id_estado_zona = 1
+    ORDER BY nombre_zona;
+END $$
 DELIMITER ;

@@ -58,6 +58,8 @@
                     <th>Nombre</th>
                     <th>Teléfono</th>
                     <th>Email</th>
+                    <th>Dirección</th>
+                    <th>Zona</th>
                     <th>Estado</th>
                     <th>Fecha Registro</th>
                     <th>Acciones</th>
@@ -65,7 +67,7 @@
             </thead>
             <tbody id="tablaClientes">
                 <tr>
-                    <td colspan="6" class="text-center">
+                    <td colspan="8" class="text-center">
                         <div class="loading-spinner">
                             <i class="fas fa-spinner fa-spin"></i>
                             <span>Cargando clientes...</span>
@@ -123,6 +125,19 @@
                 </div>
 
                 <div class="form-group">
+                    <label for="zonaCliente">Zona *</label>
+                    <select id="zonaCliente" class="form-control" required>
+                        <option value="">Seleccionar zona...</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="direccionCliente">Dirección *</label>
+                    <textarea id="direccionCliente" class="form-control" rows="3" required
+                        placeholder="Ingrese la dirección completa"></textarea>
+                </div>
+
+                <div class="form-group">
                     <label for="estadoCliente">Estado *</label>
                     <select id="estadoCliente" class="form-control" required>
                         <option value="">Seleccionar estado...</option>
@@ -130,20 +145,6 @@
                         <option value="2">Inactivo</option>
                         <option value="3">Bloqueado</option>
                     </select>
-                </div>
-
-                <!-- Sección de Direcciones -->
-                <div class="direcciones-section">
-                    <div class="section-header">
-                        <h4><i class="fas fa-map-marker-alt"></i> Direcciones</h4>
-                        <button type="button" class="btn btn-outline btn-sm" onclick="clientsApp.agregarDireccion()">
-                            <i class="fas fa-plus"></i> Agregar Dirección
-                        </button>
-                    </div>
-
-                    <div id="listaDirecciones">
-                        <!-- Direcciones se agregarán aquí dinámicamente -->
-                    </div>
                 </div>
             </form>
         </div>
@@ -173,45 +174,63 @@
     </div>
 </div>
 
-<!-- Plantilla para dirección (oculta) -->
-<div id="direccionPlantilla" style="display: none;">
-    <div class="direccion-item">
-        <div class="direccion-header">
-            <h5>Dirección <span class="direccion-numero">1</span></h5>
-            <button type="button" class="btn-remove-direccion" onclick="clientsApp.eliminarDireccion(this)">
+<!-- Modal Editar Cliente -->
+<div id="modalEditarCliente" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-edit"></i> Editar Cliente</h3>
+            <button class="btn-close" onclick="clientsApp.cerrarModalEditar()">
                 <i class="fas fa-times"></i>
             </button>
         </div>
-        <div class="form-row">
-            <div class="form-group">
-                <label>Dirección *</label>
-                <input type="text" class="form-control direccion-campo" required
-                    placeholder="Calle, número, piso, etc.">
-            </div>
+        <div class="modal-body">
+            <form id="formEditarCliente">
+                <input type="hidden" id="editarIdCliente">
+                <div class="form-group">
+                    <label for="editarNombreCliente">Nombre *</label>
+                    <input type="text" id="editarNombreCliente" class="form-control" required>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="editarTelefonoCliente">Teléfono</label>
+                        <input type="tel" id="editarTelefonoCliente" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="editarEmailCliente">Email</label>
+                        <input type="email" id="editarEmailCliente" class="form-control">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="editarZonaCliente">Zona *</label>
+                    <select id="editarZonaCliente" class="form-control" required>
+                        <option value="">Seleccionar zona...</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="editarDireccionCliente">Dirección *</label>
+                    <textarea id="editarDireccionCliente" class="form-control" rows="3" required></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="editarEstadoCliente">Estado *</label>
+                    <select id="editarEstadoCliente" class="form-control" required>
+                        <option value="1">Activo</option>
+                        <option value="2">Inactivo</option>
+                        <option value="3">Bloqueado</option>
+                    </select>
+                </div>
+            </form>
         </div>
-        <div class="form-row">
-            <div class="form-group">
-                <label>Ciudad *</label>
-                <input type="text" class="form-control ciudad-campo" required placeholder="Ciudad">
-            </div>
-            <div class="form-group">
-                <label>Código Postal</label>
-                <input type="text" class="form-control codigo-postal-campo" placeholder="Código postal">
-            </div>
-        </div>
-        <div class="form-row">
-            <div class="form-group">
-                <label>Provincia/Estado</label>
-                <input type="text" class="form-control provincia-campo" placeholder="Provincia o estado">
-            </div>
-            <div class="form-group">
-                <label>País</label>
-                <input type="text" class="form-control pais-campo" placeholder="País" value="España">
-            </div>
-        </div>
-        <div class="form-check">
-            <input type="checkbox" class="form-check-input direccion-principal">
-            <label class="form-check-label">Marcar como dirección principal</label>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="clientsApp.cerrarModalEditar()">
+                Cancelar
+            </button>
+            <button type="button" class="btn btn-primary" onclick="clientsApp.actualizarCliente()">
+                <i class="fas fa-save"></i> Actualizar Cliente
+            </button>
         </div>
     </div>
 </div>

@@ -6,6 +6,7 @@ from config import Config, swagger_template
 from flask_mysqldb import MySQL
 from utils.decorators import login_required, role_required
 from datetime import datetime
+from routes.clientes import init_clientes_routes
 
 # Obtener el directorio base del proyecto
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -20,6 +21,10 @@ app.config.from_object(Config)
 # Inicializar extensiones
 mysql = MySQL(app)
 swagger = Swagger(app, template=swagger_template)
+
+# Después de crear la app y mysql
+clientes_bp = init_clientes_routes(app, mysql)
+app.register_blueprint(clientes_bp, url_prefix='/')
 
 # Context processor
 @app.context_processor
