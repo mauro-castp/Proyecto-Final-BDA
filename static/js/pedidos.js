@@ -1,10 +1,11 @@
-// static/js/pedidos.js
+// static/js/pedidos.js - VERSIÓN COMPLETAMENTE CORREGIDA
 class PedidosApp {
     constructor() {
         this.pedidos = [];
         this.clientes = [];
         this.productos = [];
         this.empresas = [];
+        this.estadosPedido = [];
         this.pedidoEditando = null;
         this.paginaActual = 1;
         this.totalPaginas = 1;
@@ -28,14 +29,17 @@ class PedidosApp {
         // Filtros
         document.getElementById('filtroEstado').addEventListener('change', (e) => {
             this.filtros.estado = e.target.value;
+            this.aplicarFiltros();
         });
 
         document.getElementById('filtroFecha').addEventListener('change', (e) => {
             this.filtros.fecha = e.target.value;
+            this.aplicarFiltros();
         });
 
         document.getElementById('filtroEmpresa').addEventListener('change', (e) => {
             this.filtros.empresa = e.target.value;
+            this.aplicarFiltros();
         });
 
         // Paginación
@@ -57,12 +61,16 @@ class PedidosApp {
         window.onclick = (event) => {
             const modalNuevo = document.getElementById('modalNuevoPedido');
             const modalDetalles = document.getElementById('modalDetallesPedido');
+            const modalEditar = document.getElementById('modalEditarPedido');
             
             if (event.target === modalNuevo) {
                 this.cerrarModal();
             }
             if (event.target === modalDetalles) {
                 this.cerrarModalDetalles();
+            }
+            if (event.target === modalEditar) {
+                this.cerrarModalEditar();
             }
         };
     }
@@ -73,7 +81,8 @@ class PedidosApp {
                 this.cargarClientes(),
                 this.cargarProductos(),
                 this.cargarEmpresas(),
-                this.cargarEmpresasFiltro()
+                this.cargarEmpresasFiltro(),
+                this.cargarEstadosPedido()
             ]);
         } catch (error) {
             console.error('Error cargando datos iniciales:', error);
@@ -126,6 +135,17 @@ class PedidosApp {
         const response = await fetch('/api/pedidos/empresas-activas');
         if (!response.ok) throw new Error('Error cargando empresas');
         this.empresas = await response.json();
+    }
+
+    async cargarEstadosPedido() {
+        try {
+            const response = await fetch('/api/pedidos/estados');
+            if (!response.ok) throw new Error('Error cargando estados');
+            this.estadosPedido = await response.json();
+        } catch (error) {
+            console.error('Error cargando estados de pedido:', error);
+            this.estadosPedido = [];
+        }
     }
 
     async cargarEmpresasFiltro() {
@@ -212,7 +232,7 @@ class PedidosApp {
                         <i class="fas fa-eye"></i>
                     </button>
                     ${this.puedeEditar(pedido) ? `
-                        <button class="btn-action btn-edit" onclick="pedidosApp.editarPedido(${pedido.id_pedido})" title="Editar">
+                        <button class="btn-action btn-edit" onclick="pedidosApp.editarPedido(${pedido.id_pedido})" title="Actualizar estado">
                             <i class="fas fa-edit"></i>
                         </button>
                     ` : ''}
@@ -233,12 +253,14 @@ class PedidosApp {
 
     puedeEditar(pedido) {
         const estado = pedido.estado_nombre?.toLowerCase();
-        return estado === 'pendiente' || estado === 'confirmado';
+        const estadosEditables = ['pendiente', 'confirmado', 'en preparacion', 'listo para entrega', 'en camino'];
+        return estadosEditables.includes(estado);
     }
 
     puedeCancelar(pedido) {
         const estado = pedido.estado_nombre?.toLowerCase();
-        return estado === 'pendiente' || estado === 'confirmado' || estado === 'en preparacion';
+        const estadosCancelables = ['pendiente', 'confirmado', 'en preparacion'];
+        return estadosCancelables.includes(estado);
     }
 
     puedeEliminar(pedido) {
@@ -425,11 +447,8 @@ class PedidosApp {
                 return;
             }
 
-            const url = this.pedidoEditando ? 
-                `/api/pedidos/${this.pedidoEditando.id_pedido}` : 
-                '/api/pedidos';
-            
-            const method = this.pedidoEditando ? 'PUT' : 'POST';
+            const url = '/api/pedidos';
+            const method = 'POST';
 
             const response = await fetch(url, {
                 method: method,
@@ -445,7 +464,7 @@ class PedidosApp {
                 throw new Error(result.error || 'Error guardando pedido');
             }
 
-            this.mostrarExito(result.message || (this.pedidoEditando ? 'Pedido actualizado exitosamente' : 'Pedido creado exitosamente'));
+            this.mostrarExito(result.message || 'Pedido creado exitosamente');
             this.cerrarModal();
             await this.cargarPedidos();
 
@@ -472,26 +491,16 @@ class PedidosApp {
             }
         });
 
-        if (this.pedidoEditando) {
-            return {
-                id_estado_pedido: 1 // Estado por defecto para actualización
-            };
-        } else {
-            return {
-                id_cliente: parseInt(document.getElementById('clientePedido').value),
-                id_direccion: parseInt(document.getElementById('direccionPedido').value),
-                id_empresa: document.getElementById('empresaPedido').value ? 
-                    parseInt(document.getElementById('empresaPedido').value) : null,
-                items: productos
-            };
-        }
+        return {
+            id_cliente: parseInt(document.getElementById('clientePedido').value),
+            id_direccion: parseInt(document.getElementById('direccionPedido').value),
+            id_empresa: document.getElementById('empresaPedido').value ? 
+                parseInt(document.getElementById('empresaPedido').value) : null,
+            items: productos
+        };
     }
 
     validarFormulario(formData) {
-        if (this.pedidoEditando) {
-            return true; // Para edición solo validamos estado básico
-        }
-
         if (!formData.id_cliente) {
             this.mostrarError('Por favor seleccione un cliente');
             return false;
@@ -526,6 +535,8 @@ class PedidosApp {
         this.actualizarTotal();
     }
 
+    // ==================== MÉTODOS CORREGIDOS PARA EDITAR Y CANCELAR ====================
+
     async editarPedido(idPedido) {
         try {
             const response = await fetch(`/api/pedidos/${idPedido}`);
@@ -534,17 +545,199 @@ class PedidosApp {
             const pedido = await response.json();
             this.pedidoEditando = pedido;
 
-            // Cambiar título del modal
-            document.getElementById('modalPedidoTitulo').innerHTML = '<i class="fas fa-edit"></i> Editar Pedido';
-            
-            // En una implementación completa aquí cargarías los datos en el formulario
-            // Por ahora mostramos un mensaje
-            this.mostrarModalNuevoPedido();
-            this.mostrarInfo('Funcionalidad de edición en desarrollo. Por ahora solo puede cambiar el estado.');
+            // Crear modal específico para edición
+            this.mostrarModalEditarPedido(pedido);
 
         } catch (error) {
             console.error('Error cargando pedido para editar:', error);
             this.mostrarError('Error al cargar el pedido para editar');
+        }
+    }
+
+    mostrarModalEditarPedido(pedido) {
+        // Crear modal específico para edición
+        const modalHTML = `
+            <div class="modal" id="modalEditarPedido">
+                <div class="modal-content modal-md">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-edit"></i> Actualizar Estado del Pedido</h3>
+                        <button class="btn-close" onclick="pedidosApp.cerrarModalEditar()">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="pedido-info">
+                            <p><strong>Pedido #${pedido.id_pedido}</strong></p>
+                            <p>Cliente: ${pedido.cliente_nombre || 'N/A'}</p>
+                            <p>Estado actual: <span class="estado-badge estado-${(pedido.estado_nombre || 'pendiente').toLowerCase().replace(/\s+/g, '-')}">${pedido.estado_nombre || 'Pendiente'}</span></p>
+                        </div>
+                        <form id="formEditarPedido">
+                            <div class="form-group">
+                                <label for="nuevoEstadoPedido">Nuevo Estado *</label>
+                                <select id="nuevoEstadoPedido" class="form-control" required>
+                                    <option value="">Seleccionar estado...</option>
+                                    ${this.estadosPedido.map(estado => 
+                                        `<option value="${estado.id_estado_pedido}" ${estado.id_estado_pedido == pedido.id_estado_pedido ? 'selected' : ''}>${estado.nombre_estado}</option>`
+                                    ).join('')}
+                                </select>
+                            </div>
+                            <div class="form-group" id="motivoCancelacionGroup" style="display: none;">
+                                <label for="motivoCancelacion">Motivo de Cancelación</label>
+                                <textarea id="motivoCancelacion" class="form-control" placeholder="Ingrese el motivo de cancelación..." rows="3"></textarea>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" onclick="pedidosApp.cerrarModalEditar()">
+                            Cancelar
+                        </button>
+                        <button type="button" class="btn btn-primary" onclick="pedidosApp.actualizarEstadoPedido()">
+                            <i class="fas fa-save"></i> Actualizar Estado
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Agregar modal al DOM
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        
+        // Mostrar modal
+        document.getElementById('modalEditarPedido').style.display = 'block';
+        
+        // Configurar evento para mostrar/ocultar motivo de cancelación
+        document.getElementById('nuevoEstadoPedido').addEventListener('change', (e) => {
+            this.toggleMotivoCancelacion(e.target.value);
+        });
+    }
+
+    toggleMotivoCancelacion(estadoId) {
+        const motivoGroup = document.getElementById('motivoCancelacionGroup');
+        const estadoCancelado = this.estadosPedido.find(estado => 
+            estado.nombre_estado.toLowerCase() === 'cancelado'
+        );
+        
+        if (estadoCancelado && estadoId == estadoCancelado.id_estado_pedido) {
+            motivoGroup.style.display = 'block';
+        } else {
+            motivoGroup.style.display = 'none';
+        }
+    }
+
+    cerrarModalEditar() {
+        const modal = document.getElementById('modalEditarPedido');
+        if (modal) {
+            modal.remove();
+        }
+        this.pedidoEditando = null;
+    }
+
+    async actualizarEstadoPedido() {
+        try {
+            const nuevoEstadoId = document.getElementById('nuevoEstadoPedido').value;
+            const motivoCancelacion = document.getElementById('motivoCancelacion')?.value || '';
+
+            if (!nuevoEstadoId) {
+                this.mostrarError('Por favor seleccione un estado');
+                return;
+            }
+
+            const estadoCancelado = this.estadosPedido.find(estado => 
+                estado.nombre_estado.toLowerCase() === 'cancelado'
+            );
+
+            // Si es cancelación, usar el endpoint específico de cancelar
+            if (estadoCancelado && nuevoEstadoId == estadoCancelado.id_estado_pedido) {
+                if (!motivoCancelacion.trim()) {
+                    this.mostrarError('Por favor ingrese un motivo de cancelación');
+                    return;
+                }
+                
+                const cancelado = await this.cancelarPedido(this.pedidoEditando.id_pedido, motivoCancelacion);
+                if (cancelado) {
+                    this.mostrarExito('Pedido cancelado exitosamente');
+                    this.cerrarModalEditar();
+                    await this.cargarPedidos();
+                }
+            } else {
+                // Para otros estados, usar el endpoint de actualización normal
+                const formData = {
+                    id_estado_pedido: parseInt(nuevoEstadoId)
+                };
+
+                const response = await fetch(`/api/pedidos/${this.pedidoEditando.id_pedido}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                const result = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(result.error || 'Error actualizando pedido');
+                }
+
+                this.mostrarExito('Estado del pedido actualizado exitosamente');
+                this.cerrarModalEditar();
+                await this.cargarPedidos();
+            }
+
+        } catch (error) {
+            console.error('Error actualizando pedido:', error);
+            this.mostrarError(error.message || 'Error al actualizar el pedido');
+        }
+    }
+
+    async cancelarPedido(idPedido, motivo = null) {
+        let motivoFinal = motivo;
+        
+        // Si no se proporcionó motivo, pedirlo
+        if (!motivoFinal) {
+            const { value: motivoInput } = await Swal.fire({
+                title: 'Cancelar Pedido',
+                input: 'textarea',
+                inputLabel: 'Motivo de cancelación',
+                inputPlaceholder: 'Ingrese el motivo de la cancelación...',
+                inputAttributes: {
+                    'aria-label': 'Ingrese el motivo de la cancelación'
+                },
+                showCancelButton: true,
+                confirmButtonText: 'Cancelar Pedido',
+                cancelButtonText: 'Volver',
+                inputValidator: (value) => {
+                    if (!value) {
+                        return 'Debe ingresar un motivo para cancelar el pedido';
+                    }
+                }
+            });
+
+            if (!motivoInput) return false; // Usuario canceló
+            motivoFinal = motivoInput;
+        }
+
+        try {
+            const response = await fetch(`/api/pedidos/${idPedido}/cancelar`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ motivo: motivoFinal })
+            });
+
+            const result = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(result.error || 'Error cancelando pedido');
+            }
+
+            return true;
+
+        } catch (error) {
+            console.error('Error cancelando pedido:', error);
+            this.mostrarError(error.message || 'Error al cancelar el pedido');
+            return false;
         }
     }
 
@@ -578,51 +771,6 @@ class PedidosApp {
             } catch (error) {
                 console.error('Error eliminando pedido:', error);
                 this.mostrarError(error.message || 'Error al eliminar el pedido');
-            }
-        }
-    }
-
-    async cancelarPedido(idPedido) {
-        const { value: motivo } = await Swal.fire({
-            title: 'Cancelar Pedido',
-            input: 'textarea',
-            inputLabel: 'Motivo de cancelación',
-            inputPlaceholder: 'Ingrese el motivo de la cancelación...',
-            inputAttributes: {
-                'aria-label': 'Ingrese el motivo de la cancelación'
-            },
-            showCancelButton: true,
-            confirmButtonText: 'Cancelar Pedido',
-            cancelButtonText: 'Volver',
-            inputValidator: (value) => {
-                if (!value) {
-                    return 'Debe ingresar un motivo para cancelar el pedido';
-                }
-            }
-        });
-
-        if (motivo) {
-            try {
-                const response = await fetch(`/api/pedidos/${idPedido}/cancelar`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ motivo })
-                });
-
-                const result = await response.json();
-                
-                if (!response.ok) {
-                    throw new Error(result.error || 'Error cancelando pedido');
-                }
-
-                this.mostrarExito(result.message || 'Pedido cancelado exitosamente');
-                await this.cargarPedidos();
-
-            } catch (error) {
-                console.error('Error cancelando pedido:', error);
-                this.mostrarError(error.message || 'Error al cancelar el pedido');
             }
         }
     }
@@ -775,11 +923,5 @@ class PedidosApp {
 
 // Inicializar la aplicación de pedidos
 document.addEventListener('DOMContentLoaded', () => {
-    // Verificar si SweetAlert2 está disponible
-    if (typeof Swal === 'undefined') {
-        console.error('SweetAlert2 no está cargado. Cargando desde CDN...');
-        // Podrías cargar SweetAlert2 dinámicamente aquí si es necesario
-    }
-    
     window.pedidosApp = new PedidosApp();
 });
