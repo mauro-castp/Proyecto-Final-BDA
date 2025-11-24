@@ -4,6 +4,7 @@
 
 {% block css_specific %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
+
 {% endblock %}
 
 {% block page_title %}Bienvenido al Sistema LUM{% endblock %}
@@ -13,27 +14,84 @@
     <h2>🚚 Sistema de Logística Última Milla</h2>
     <p>Gestiona pedidos, entregas, rutas y optimiza tu operación logística</p>
 
-    <div class="stats-grid">
+    <!-- Loading spinner -->
+    <div class="loading-spinner" id="loadingSpinner">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Cargando...</span>
+        </div>
+        <p class="mt-2">Cargando estadísticas...</p>
+    </div>
+
+    <div class="stats-grid" id="statsGrid" style="display: none;">
         <div class="stat-card">
             <h3 id="pedidosCount">0</h3>
             <p>Pedidos Activos</p>
+            <small class="text-muted">Pendientes de procesar</small>
         </div>
         <div class="stat-card">
             <h3 id="entregasCount">0</h3>
             <p>Entregas Pendientes</p>
+            <small class="text-muted">Por realizar hoy</small>
         </div>
         <div class="stat-card">
             <h3 id="rutasCount">0</h3>
             <p>Rutas Activas</p>
+            <small class="text-muted">En ejecución</small>
         </div>
         <div class="stat-card">
             <h3 id="incidenciasCount">0</h3>
             <p>Incidencias Activas</p>
+            <small class="text-muted">Requieren atención</small>
         </div>
     </div>
 </div>
 
-<div class="quick-actions">
+<!-- Información adicional -->
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-shipping-fast me-2"></i>
+                    Entregas de Hoy
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="entregasHoyList">
+                    <div class="text-center text-muted">
+                        <div class="spinner-border spinner-border-sm" role="status">
+                            <span class="visually-hidden">Cargando...</span>
+                        </div>
+                        Cargando entregas...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Incidencias Activas
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="incidenciasActivasList">
+                    <div class="text-center text-muted">
+                        <div class="spinner-border spinner-border-sm" role="status">
+                            <span class="visually-hidden">Cargando...</span>
+                        </div>
+                        Cargando incidencias...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="quick-actions mt-4">
     <h3>Acciones Rápidas</h3>
     <div class="actions-grid">
         <a href="{{ url_for('pedidos_page') }}" class="action-card">
@@ -51,6 +109,16 @@
         <a href="{{ url_for('reportes_page') }}" class="action-card">
             <i class="fas fa-chart-bar"></i>
             <span>Ver Reportes</span>
+        </a>
+        {% if session.user_role in [1, 2] %}
+        <a href="{{ url_for('clientes_page') }}" class="action-card">
+            <i class="fas fa-users"></i>
+            <span>Gestionar Clientes</span>
+        </a>
+        {% endif %}
+        <a href="{{ url_for('incidencias_page') }}" class="action-card">
+            <i class="fas fa-exclamation-circle"></i>
+            <span>Reportar Incidencia</span>
         </a>
     </div>
 </div>

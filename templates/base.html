@@ -15,7 +15,7 @@
     <div class="sidebar">
         <div class="sidebar-header">
             <h2>LUM System</h2>
-            <div class="role">{{ session.user_role }}</div>
+            <div class="role">{{ user_rol }}</div>
         </div>
         <ul class="nav-links">
             <li><a href="{{ url_for('index') }}" {% if request.endpoint=='index' %}class="active" {% endif %}>

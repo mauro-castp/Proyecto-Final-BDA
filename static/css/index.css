@@ -12,7 +12,7 @@
     --color-border: #e2e8f0;
     --color-error: #ef4444;
     --color-success: #10b981;
-    
+
     /* Colores derivados para mejor contexto */
     --color-warning: #f59e0b;
     --color-info: #3b82f6;
@@ -36,7 +36,7 @@
 }
 
 .welcome-section p {
-    color: var(--color-text-light);
+    font-weight: bold;
     font-size: 1.2rem;
     margin-bottom: 2rem;
     max-width: 600px;
@@ -153,7 +153,7 @@
     .stats-grid {
         grid-template-columns: repeat(2, 1fr);
     }
-    
+
     .actions-grid {
         grid-template-columns: repeat(2, 1fr);
     }
@@ -167,7 +167,7 @@
     .welcome-section h2 {
         font-size: 2rem;
     }
-    
+
     .welcome-section p {
         font-size: 1rem;
     }
@@ -176,7 +176,7 @@
         grid-template-columns: 1fr;
         gap: 1rem;
     }
-    
+
     .stat-card {
         padding: 1.5rem;
     }
@@ -184,7 +184,7 @@
     .stat-card h3 {
         font-size: 2rem;
     }
-    
+
     .quick-actions h3 {
         font-size: 1.5rem;
     }
@@ -193,11 +193,11 @@
         grid-template-columns: repeat(2, 1fr);
         gap: 1rem;
     }
-    
+
     .action-card {
         padding: 1.5rem 1rem;
     }
-    
+
     .action-card i {
         font-size: 2rem;
     }
@@ -207,7 +207,7 @@
     .welcome-section h2 {
         font-size: 1.8rem;
     }
-    
+
     .actions-grid {
         grid-template-columns: 1fr;
     }

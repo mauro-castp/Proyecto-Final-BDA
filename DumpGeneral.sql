@@ -32,12 +32,12 @@ DROP TABLE IF EXISTS `aud_entregas`;
 CREATE TABLE `aud_entregas` (
   `id_log` int(11) NOT NULL AUTO_INCREMENT,
   `id_entrega` int(11) DEFAULT NULL,
-  `valores_anteriores` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`valores_anteriores`)),
-  `valores_nuevos` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`valores_nuevos`)),
+  `valores_anteriores` longtext CHARACTER SET utf8mb4 DEFAULT NULL CHECK (json_valid(`valores_anteriores`)),
+  `valores_nuevos` longtext CHARACTER SET utf8mb4 DEFAULT NULL CHECK (json_valid(`valores_nuevos`)),
   `usuario` varchar(100) DEFAULT NULL,
   `fecha` timestamp NULL DEFAULT current_timestamp(),
   PRIMARY KEY (`id_log`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -59,12 +59,12 @@ DROP TABLE IF EXISTS `aud_incidencias`;
 CREATE TABLE `aud_incidencias` (
   `id_log` int(11) NOT NULL AUTO_INCREMENT,
   `id_incidencia` int(11) DEFAULT NULL,
-  `valores_anteriores` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`valores_anteriores`)),
-  `valores_nuevos` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`valores_nuevos`)),
+  `valores_anteriores` longtext CHARACTER SET utf8mb4 DEFAULT NULL CHECK (json_valid(`valores_anteriores`)),
+  `valores_nuevos` longtext CHARACTER SET utf8mb4 DEFAULT NULL CHECK (json_valid(`valores_nuevos`)),
   `usuario` varchar(100) DEFAULT NULL,
   `fecha` timestamp NULL DEFAULT current_timestamp(),
   PRIMARY KEY (`id_log`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -86,12 +86,12 @@ DROP TABLE IF EXISTS `aud_pedidos`;
 CREATE TABLE `aud_pedidos` (
   `id_log` int(11) NOT NULL AUTO_INCREMENT,
   `id_pedido` int(11) DEFAULT NULL,
-  `valores_anteriores` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`valores_anteriores`)),
-  `valores_nuevos` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`valores_nuevos`)),
+  `valores_anteriores` longtext CHARACTER SET utf8mb4 DEFAULT NULL CHECK (json_valid(`valores_anteriores`)),
+  `valores_nuevos` longtext CHARACTER SET utf8mb4 DEFAULT NULL CHECK (json_valid(`valores_nuevos`)),
   `usuario` varchar(100) DEFAULT NULL,
   `fecha` timestamp NULL DEFAULT current_timestamp(),
   PRIMARY KEY (`id_log`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -113,12 +113,12 @@ DROP TABLE IF EXISTS `aud_rutas`;
 CREATE TABLE `aud_rutas` (
   `id_log` int(11) NOT NULL AUTO_INCREMENT,
   `id_ruta` int(11) DEFAULT NULL,
-  `valores_anteriores` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`valores_anteriores`)),
-  `valores_nuevos` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`valores_nuevos`)),
+  `valores_anteriores` longtext CHARACTER SET utf8mb4  DEFAULT NULL CHECK (json_valid(`valores_anteriores`)),
+  `valores_nuevos` longtext CHARACTER SET utf8mb4  DEFAULT NULL CHECK (json_valid(`valores_nuevos`)),
   `usuario` varchar(100) DEFAULT NULL,
   `fecha` timestamp NULL DEFAULT current_timestamp(),
   PRIMARY KEY (`id_log`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -148,7 +148,7 @@ CREATE TABLE `clientes` (
   PRIMARY KEY (`id_cliente`),
   KEY `id_estado_cliente` (`id_estado_cliente`),
   CONSTRAINT `clientes_ibfk_1` FOREIGN KEY (`id_estado_cliente`) REFERENCES `estados_cliente` (`id_estado_cliente`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -186,7 +186,7 @@ CREATE TABLE `costos_operativos` (
   CONSTRAINT `costos_operativos_ibfk_1` FOREIGN KEY (`id_vehiculo`) REFERENCES `vehiculos` (`id_vehiculo`),
   CONSTRAINT `costos_operativos_ibfk_2` FOREIGN KEY (`id_ruta`) REFERENCES `rutas` (`id_ruta`),
   CONSTRAINT `costos_operativos_ibfk_3` FOREIGN KEY (`id_tipo_costo`) REFERENCES `tipos_costo` (`id_tipo_costo`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -218,7 +218,7 @@ CREATE TABLE `detalle_pedido` (
   KEY `id_producto` (`id_producto`),
   CONSTRAINT `detalle_pedido_ibfk_1` FOREIGN KEY (`id_pedido`) REFERENCES `pedidos` (`id_pedido`),
   CONSTRAINT `detalle_pedido_ibfk_2` FOREIGN KEY (`id_producto`) REFERENCES `productos` (`id_producto`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -258,7 +258,7 @@ CREATE TABLE `direcciones_cliente` (
   CONSTRAINT `direcciones_cliente_ibfk_2` FOREIGN KEY (`id_zona`) REFERENCES `zonas` (`id_zona`),
   CONSTRAINT `direcciones_cliente_ibfk_3` FOREIGN KEY (`id_estado_direccion`) REFERENCES `estados_direccion` (`id_estado_direccion`),
   CONSTRAINT `fk_direcciones_geo` FOREIGN KEY (`id_geo`) REFERENCES `geolocalizacion` (`id_geo`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -308,7 +308,7 @@ CREATE TABLE `entregas` (
   CONSTRAINT `entregas_ibfk_3` FOREIGN KEY (`id_repartidor`) REFERENCES `usuarios` (`id_usuario`),
   CONSTRAINT `fk_entregas_estado` FOREIGN KEY (`id_estado_entrega`) REFERENCES `estados_entrega` (`id_estado_entrega`),
   CONSTRAINT `fk_entregas_motivo` FOREIGN KEY (`id_motivo_fallo`) REFERENCES `motivos_fallo` (`id_motivo`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -335,7 +335,7 @@ CREATE TABLE `estados_cliente` (
   `descripcion` text DEFAULT NULL,
   PRIMARY KEY (`id_estado_cliente`),
   UNIQUE KEY `nombre_estado` (`nombre_estado`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 ;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -366,7 +366,7 @@ CREATE TABLE `estados_direccion` (
   `descripcion` text DEFAULT NULL,
   PRIMARY KEY (`id_estado_direccion`),
   UNIQUE KEY `nombre_estado` (`nombre_estado`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 ;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -397,7 +397,7 @@ CREATE TABLE `estados_entrega` (
   `descripcion` text DEFAULT NULL,
   PRIMARY KEY (`id_estado_entrega`),
   UNIQUE KEY `nombre_estado` (`nombre_estado`)
-) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 ;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -432,7 +432,7 @@ CREATE TABLE `estados_incidencia` (
   `descripcion` text DEFAULT NULL,
   PRIMARY KEY (`id_estado_incidencia`),
   UNIQUE KEY `nombre_estado` (`nombre_estado`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 ;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -464,7 +464,7 @@ CREATE TABLE `estados_parada` (
   `descripcion` text DEFAULT NULL,
   PRIMARY KEY (`id_estado_parada`),
   UNIQUE KEY `nombre_estado` (`nombre_estado`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 ;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -496,7 +496,7 @@ CREATE TABLE `estados_pedido` (
   `descripcion` text DEFAULT NULL,
   PRIMARY KEY (`id_estado_pedido`),
   UNIQUE KEY `nombre_estado` (`nombre_estado`)
-) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 ;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -531,7 +531,7 @@ CREATE TABLE `estados_producto` (
   `descripcion` text DEFAULT NULL,
   PRIMARY KEY (`id_estado_producto`),
   UNIQUE KEY `nombre_estado` (`nombre_estado`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 ;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -562,7 +562,7 @@ CREATE TABLE `estados_rol` (
   `descripcion` text DEFAULT NULL,
   PRIMARY KEY (`id_estado_rol`),
   UNIQUE KEY `nombre_estado` (`nombre_estado`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 ;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -592,7 +592,7 @@ CREATE TABLE `estados_ruta` (
   `descripcion` text DEFAULT NULL,
   PRIMARY KEY (`id_estado_ruta`),
   UNIQUE KEY `nombre_estado` (`nombre_estado`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 ;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -624,7 +624,7 @@ CREATE TABLE `estados_usuario` (
   `descripcion` text DEFAULT NULL,
   PRIMARY KEY (`id_estado_usuario`),
   UNIQUE KEY `nombre_estado` (`nombre_estado`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 ;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -655,7 +655,7 @@ CREATE TABLE `estados_vehiculo` (
   `descripcion` text DEFAULT NULL,
   PRIMARY KEY (`id_estado_vehiculo`),
   UNIQUE KEY `nombre_estado` (`nombre_estado`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 ;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -686,7 +686,7 @@ CREATE TABLE `estados_zona` (
   `descripcion` text DEFAULT NULL,
   PRIMARY KEY (`id_estado_zona`),
   UNIQUE KEY `nombre_estado` (`nombre_estado`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 ;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -727,7 +727,7 @@ CREATE TABLE `evidencias` (
   CONSTRAINT `evidencias_ibfk_1` FOREIGN KEY (`id_entrega`) REFERENCES `entregas` (`id_entrega`),
   CONSTRAINT `evidencias_ibfk_2` FOREIGN KEY (`id_costo_operativo`) REFERENCES `costos_operativos` (`id_costo`),
   CONSTRAINT `evidencias_ibfk_3` FOREIGN KEY (`id_incidencia`) REFERENCES `incidencias` (`id_incidencia`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -754,7 +754,7 @@ CREATE TABLE `geolocalizacion` (
   `longitud` decimal(11,8) NOT NULL,
   PRIMARY KEY (`id_geo`),
   UNIQUE KEY `latitud` (`latitud`,`longitud`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -802,7 +802,7 @@ CREATE TABLE `incidencias` (
   CONSTRAINT `incidencias_ibfk_2` FOREIGN KEY (`id_zona`) REFERENCES `zonas` (`id_zona`),
   CONSTRAINT `incidencias_ibfk_4` FOREIGN KEY (`id_nivel_impacto`) REFERENCES `niveles_impacto` (`id_nivel_impacto`),
   CONSTRAINT `incidencias_ibfk_5` FOREIGN KEY (`id_usuario_reporta`) REFERENCES `usuarios` (`id_usuario`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -830,7 +830,7 @@ CREATE TABLE `motivos_fallo` (
   `categoria` enum('cliente','repartidor','externo','sistema') NOT NULL,
   PRIMARY KEY (`id_motivo`),
   UNIQUE KEY `nombre` (`nombre`)
-) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 ;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -868,7 +868,7 @@ CREATE TABLE `niveles_impacto` (
   `descripcion` text DEFAULT NULL,
   PRIMARY KEY (`id_nivel_impacto`),
   UNIQUE KEY `nombre_nivel` (`nombre_nivel`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -899,7 +899,7 @@ CREATE TABLE `otp` (
   PRIMARY KEY (`id_otp`),
   KEY `id_entrega` (`id_entrega`),
   CONSTRAINT `otp_ibfk_1` FOREIGN KEY (`id_entrega`) REFERENCES `entregas` (`id_entrega`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -937,7 +937,7 @@ CREATE TABLE `paradas_ruta` (
   CONSTRAINT `fk_paradas_estado` FOREIGN KEY (`id_estado_parada`) REFERENCES `estados_parada` (`id_estado_parada`),
   CONSTRAINT `paradas_ruta_ibfk_1` FOREIGN KEY (`id_ruta`) REFERENCES `rutas` (`id_ruta`),
   CONSTRAINT `paradas_ruta_ibfk_2` FOREIGN KEY (`id_pedido`) REFERENCES `pedidos` (`id_pedido`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -979,7 +979,7 @@ CREATE TABLE `pedidos` (
   CONSTRAINT `fk_pedidos_estado` FOREIGN KEY (`id_estado_pedido`) REFERENCES `estados_pedido` (`id_estado_pedido`),
   CONSTRAINT `pedidos_ibfk_1` FOREIGN KEY (`id_cliente`) REFERENCES `clientes` (`id_cliente`),
   CONSTRAINT `pedidos_ibfk_2` FOREIGN KEY (`id_direccion_entrega`) REFERENCES `direcciones_cliente` (`id_direccion`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1011,7 +1011,7 @@ CREATE TABLE `penalizaciones` (
   KEY `id_tipo_penalizacion` (`id_tipo_penalizacion`),
   CONSTRAINT `penalizaciones_ibfk_1` FOREIGN KEY (`id_entrega`) REFERENCES `entregas` (`id_entrega`),
   CONSTRAINT `penalizaciones_ibfk_2` FOREIGN KEY (`id_tipo_penalizacion`) REFERENCES `tipos_penalizacion` (`id_tipo_penalizacion`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1044,7 +1044,7 @@ CREATE TABLE `productos` (
   PRIMARY KEY (`id_producto`),
   KEY `id_estado_producto` (`id_estado_producto`),
   CONSTRAINT `productos_ibfk_1` FOREIGN KEY (`id_estado_producto`) REFERENCES `estados_producto` (`id_estado_producto`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1075,7 +1075,7 @@ CREATE TABLE `roles` (
   UNIQUE KEY `nombre_rol` (`nombre_rol`),
   KEY `id_estado_rol` (`id_estado_rol`),
   CONSTRAINT `roles_ibfk_1` FOREIGN KEY (`id_estado_rol`) REFERENCES `estados_rol` (`id_estado_rol`)
-) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 ;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1086,10 +1086,10 @@ LOCK TABLES `roles` WRITE;
 /*!40000 ALTER TABLE `roles` DISABLE KEYS */;
 set autocommit=0;
 INSERT INTO `roles` VALUES
-(9,'Admin','Acceso total al sistema',1,'2025-11-16 08:11:00'),
-(10,'Planificador','Gestiona rutas, pedidos y asignaciones',1,'2025-11-16 08:11:00'),
-(11,'Repartidor','Solo ve y confirma sus entregas',1,'2025-11-16 08:11:00'),
-(12,'Auditor','Consulta reportes y auditorías',1,'2025-11-16 08:11:00');
+(1,'Administrador','Acceso total al sistema',1,'2025-11-16 08:11:00'),
+(2,'Planificador','Gestiona rutas, pedidos y asignaciones',1,'2025-11-16 08:11:00'),
+(3,'Repartidor','Solo ve y confirma sus entregas',1,'2025-11-16 08:11:00'),
+(4,'Auditor','Consulta reportes y auditorías',1,'2025-11-16 08:11:00');
 /*!40000 ALTER TABLE `roles` ENABLE KEYS */;
 UNLOCK TABLES;
 commit;
@@ -1123,7 +1123,7 @@ CREATE TABLE `rutas` (
   CONSTRAINT `rutas_ibfk_1` FOREIGN KEY (`id_vehiculo`) REFERENCES `vehiculos` (`id_vehiculo`),
   CONSTRAINT `rutas_ibfk_2` FOREIGN KEY (`id_repartidor`) REFERENCES `usuarios` (`id_usuario`),
   CONSTRAINT `rutas_ibfk_4` FOREIGN KEY (`id_zona`) REFERENCES `zonas` (`id_zona`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1150,7 +1150,7 @@ CREATE TABLE `tipos_costo` (
   `descripcion` text DEFAULT NULL,
   PRIMARY KEY (`id_tipo_costo`),
   UNIQUE KEY `nombre_tipo` (`nombre_tipo`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1177,7 +1177,7 @@ CREATE TABLE `tipos_incidencia` (
   `descripcion` text DEFAULT NULL,
   PRIMARY KEY (`id_tipo_incidencia`),
   UNIQUE KEY `nombre_tipo` (`nombre_tipo`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1203,7 +1203,7 @@ CREATE TABLE `tipos_penalizacion` (
   `nombre` varchar(100) NOT NULL,
   PRIMARY KEY (`id_tipo_penalizacion`),
   UNIQUE KEY `nombre` (`nombre`)
-) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 ;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1243,7 +1243,7 @@ CREATE TABLE `tipos_vehiculo` (
   `costo_por_km_base` decimal(8,2) NOT NULL,
   PRIMARY KEY (`id_tipo_vehiculo`),
   UNIQUE KEY `nombre` (`nombre`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1268,7 +1268,7 @@ CREATE TABLE `usuarios` (
   `id_usuario` int(11) NOT NULL AUTO_INCREMENT,
   `nombre` varchar(100) NOT NULL,
   `email` varchar(150) NOT NULL,
-  `password_hash` varchar(255) NOT NULL,
+  `password` varchar(255) NOT NULL,
   `id_rol` int(11) NOT NULL,
   `id_estado_usuario` int(11) NOT NULL,
   `fecha_creacion` timestamp NULL DEFAULT current_timestamp(),
@@ -1279,7 +1279,7 @@ CREATE TABLE `usuarios` (
   KEY `id_estado_usuario` (`id_estado_usuario`),
   CONSTRAINT `usuarios_ibfk_1` FOREIGN KEY (`id_rol`) REFERENCES `roles` (`id_rol`),
   CONSTRAINT `usuarios_ibfk_2` FOREIGN KEY (`id_estado_usuario`) REFERENCES `estados_usuario` (`id_estado_usuario`)
-) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 ;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1290,10 +1290,10 @@ LOCK TABLES `usuarios` WRITE;
 /*!40000 ALTER TABLE `usuarios` DISABLE KEYS */;
 set autocommit=0;
 INSERT INTO `usuarios` VALUES
-(5,'Administrador General','admin@demo.com','admin123',9,1,'2025-11-16 08:20:43','2025-11-16 08:20:43'),
-(6,'Planificador Central','planificador@demo.com','plan123',10,1,'2025-11-16 08:20:43','2025-11-16 08:20:43'),
-(7,'Repartidor Demo','repartidor@demo.com','rep123',11,1,'2025-11-16 08:20:43','2025-11-16 08:20:43'),
-(8,'Auditor Demo','auditor@demo.com','aud123',12,1,'2025-11-16 08:20:43','2025-11-16 08:20:43');
+(5,'Administrador General','admin@demo.com','admin123',1,1,'2025-11-16 08:20:43','2025-11-16 08:20:43'),
+(6,'Planificador Central','planificador@demo.com','plan123',2,1,'2025-11-16 08:20:43','2025-11-16 08:20:43'),
+(7,'Repartidor Demo','repartidor@demo.com','rep123',3,1,'2025-11-16 08:20:43','2025-11-16 08:20:43'),
+(8,'Auditor Demo','auditor@demo.com','aud123',4,1,'2025-11-16 08:20:43','2025-11-16 08:20:43');
 /*!40000 ALTER TABLE `usuarios` ENABLE KEYS */;
 UNLOCK TABLES;
 commit;
@@ -1319,7 +1319,7 @@ CREATE TABLE `vehiculos` (
   KEY `id_estado_vehiculo` (`id_estado_vehiculo`),
   CONSTRAINT `vehiculos_ibfk_1` FOREIGN KEY (`id_tipo_vehiculo`) REFERENCES `tipos_vehiculo` (`id_tipo_vehiculo`),
   CONSTRAINT `vehiculos_ibfk_2` FOREIGN KEY (`id_estado_vehiculo`) REFERENCES `estados_vehiculo` (`id_estado_vehiculo`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1355,7 +1355,7 @@ CREATE TABLE `zonas` (
   KEY `fk_zonas_geo` (`id_geo_centro`),
   CONSTRAINT `fk_zonas_geo` FOREIGN KEY (`id_geo_centro`) REFERENCES `geolocalizacion` (`id_geo`),
   CONSTRAINT `zonas_ibfk_1` FOREIGN KEY (`id_estado_zona`) REFERENCES `estados_zona` (`id_estado_zona`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --

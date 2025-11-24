@@ -545,21 +545,26 @@ DELIMITER ;
 
 -- inicioSesion
 
+DROP PROCEDURE IF EXISTS inicioSesion;
+
 DELIMITER $$
-CREATE PROCEDURE inicioSesion(
+CREATE OR REPLACE PROCEDURE inicioSesion(
     IN p_email VARCHAR(150),
-    IN p_password_hash VARCHAR(255)
+    IN p_password VARCHAR(255)
 )
 BEGIN
     SELECT 
-        id_usuario,
-        nombre,
-        email,
-        id_rol
-    FROM usuarios
-    WHERE email = p_email
-      AND password_hash = p_password_hash
-      AND id_estado = 1;
+        u.id_usuario,
+        u.nombre,
+        u.email,
+        u.id_rol,
+        r.nombre_rol
+    FROM usuarios u
+    INNER JOIN roles r ON u.id_rol = r.id_rol
+    WHERE u.email = p_email
+      AND u.password = p_password
+      AND u.id_estado_usuario = 1
+      AND r.id_estado_rol = 1; 
 END $$
 DELIMITER ;
 
