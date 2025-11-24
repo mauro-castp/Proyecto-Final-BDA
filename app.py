@@ -1048,6 +1048,13 @@ def reportes_page():
     """Página de reportes"""
     return render_template('reportes.html')
 
+@app.route('/clientes')
+@login_required
+@role_required([1, 2])  # Solo admin y planificador
+def clientes_page():
+    """Página de gestión de clientes"""
+    return render_template('clientes.html')
+
 @app.route('/incidencias')
 @login_required
 def incidencias_page():
