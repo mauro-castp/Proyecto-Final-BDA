@@ -11,18 +11,10 @@ def init_rutas_routes(app, mysql):
     @login_required
     @role_required([1, 2])
     def obtener_rutas():
-        """Obtener todas las rutas"""
+        """Obtener todas las rutas - PROCEDIMIENTO"""
         try:
             cur = mysql.connection.cursor()
-            cur.execute("""
-                SELECT r.*, z.nombre_zona, u.nombre as nombre_repartidor,
-                       v.placa, er.nombre_estado
-                FROM rutas r
-                JOIN zonas z ON r.id_zona = z.id_zona
-                LEFT JOIN usuarios u ON r.id_repartidor = u.id_usuario
-                LEFT JOIN vehiculos v ON r.id_vehiculo = v.id_vehiculo
-                JOIN estados_ruta er ON r.id_estado_ruta = er.id_estado_ruta
-            """)
+            cur.callproc('rutasObtenerTodas')
             rutas = cur.fetchall()
             cur.close()
             return jsonify(rutas)
@@ -33,33 +25,22 @@ def init_rutas_routes(app, mysql):
     @login_required
     @role_required([1, 2])
     def obtener_ruta(id):
-        """Obtener ruta por ID"""
+        """Obtener ruta por ID - PROCEDIMIENTO"""
         try:
             cur = mysql.connection.cursor()
-            cur.execute("""
-                SELECT r.*, z.nombre_zona, u.nombre as nombre_repartidor,
-                       v.placa, er.nombre_estado
-                FROM rutas r
-                JOIN zonas z ON r.id_zona = z.id_zona
-                LEFT JOIN usuarios u ON r.id_repartidor = u.id_usuario
-                LEFT JOIN vehiculos v ON r.id_vehiculo = v.id_vehiculo
-                JOIN estados_ruta er ON r.id_estado_ruta = er.id_estado_ruta
-                WHERE r.id_ruta = %s
-            """, (id,))
+            cur.callproc('rutaObtenerPorId', [id])
+            
+            # Primer resultado: información de la ruta
             ruta = cur.fetchone()
             
-            cur.execute("""
-                SELECT pr.*, p.id_pedido, c.nombre as nombre_cliente,
-                       dc.direccion
-                FROM paradas_ruta pr
-                JOIN pedidos p ON pr.id_pedido = p.id_pedido
-                JOIN clientes c ON p.id_cliente = c.id_cliente
-                JOIN direcciones_cliente dc ON p.id_direccion_entrega = dc.id_direccion
-                WHERE pr.id_ruta = %s
-                ORDER BY pr.orden_secuencia
-            """, (id,))
-            paradas = cur.fetchall()
-            ruta['paradas'] = paradas
+            if not ruta:
+                cur.close()
+                return jsonify({'error': 'Ruta no encontrada'}), 404
+            
+            # Segundo resultado: paradas de la ruta
+            if cur.nextset():
+                paradas = cur.fetchall()
+                ruta['paradas'] = paradas
             
             cur.close()
             return jsonify(ruta)
@@ -70,7 +51,7 @@ def init_rutas_routes(app, mysql):
     @login_required
     @role_required([1, 2])
     def crear_ruta():
-        """Crear nueva ruta"""
+        """Crear nueva ruta - PROCEDIMIENTO EXISTENTE"""
         try:
             data = request.get_json()
             cur = mysql.connection.cursor()

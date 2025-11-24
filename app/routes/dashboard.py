@@ -9,37 +9,32 @@ def init_dashboard_routes(app, mysql):
     @dashboard_bp.route('/api/dashboard/estadisticas')
     @login_required
     def obtener_estadisticas_dashboard():
-        """Obtener estadísticas para el dashboard"""
+        """Obtener estadísticas para el dashboard - PROCEDIMIENTOS Y VISTAS"""
         try:
             cur = mysql.connection.cursor()
             
-            # Estadísticas básicas
-            cur.execute("""
-                SELECT 
-                    (SELECT COUNT(*) FROM pedidos WHERE id_estado_pedido IN (1,2)) as pedidos_pendientes,
-                    (SELECT COUNT(*) FROM entregas WHERE id_estado_entrega IN (1,2)) as entregas_pendientes,
-                    (SELECT COUNT(*) FROM rutas WHERE id_estado_ruta = 1) as rutas_activas,
-                    (SELECT COUNT(*) FROM incidencias WHERE id_estado_incidencia = 1) as incidencias_activas,
-                    (SELECT ROUND(
-                        (SELECT COUNT(*) FROM entregas WHERE id_estado_entrega = 3) * 100.0 / 
-                        NULLIF((SELECT COUNT(*) FROM entregas), 0), 2
-                    )) as tasa_exito
-            """)
+            # Estadísticas básicas - PROCEDIMIENTO
+            cur.callproc('dashboardEstadisticas')
             stats = cur.fetchone()
             
             # Datos de vistas para dashboard
+            # Vista: vPedidosPorEstado
             cur.execute("SELECT * FROM vPedidosPorEstado")
             pedidos_por_estado = cur.fetchall()
             
+            # Vista: vEntregasHoy
             cur.execute("SELECT * FROM vEntregasHoy")
             entregas_hoy = cur.fetchall()
             
+            # Vista: vIncidenciasActivas
             cur.execute("SELECT * FROM vIncidenciasActivas")
             incidencias_activas = cur.fetchall()
             
+            # Vista: vEntregasPorZona
             cur.execute("SELECT * FROM vEntregasPorZona")
             entregas_zona = cur.fetchall()
             
+            # Vista: vTiempoPromedioEntrega
             cur.execute("SELECT * FROM vTiempoPromedioEntrega")
             tiempo_promedio_entrega = cur.fetchone()
             

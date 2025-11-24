@@ -826,3 +826,196 @@ BEGIN
     DROP TEMPORARY TABLE tmpEntregasZona;
 END $$
 DELIMITER ;
+
+-- Procedimiento para obtener un cliente específico por ID
+DELIMITER $$
+CREATE PROCEDURE clienteObtenerPorId(
+    IN p_id_cliente INT
+)
+BEGIN
+    SELECT 
+        c.id_cliente,
+        c.nombre,
+        c.telefono,
+        c.email,
+        dc.direccion,
+        dc.id_zona,
+        c.id_estado_cliente
+    FROM clientes c
+    LEFT JOIN direcciones_cliente dc ON c.id_cliente = dc.id_cliente
+    WHERE c.id_cliente = p_id_cliente;
+END $$
+DELIMITER ;
+
+-- Procedimiento para eliminar (soft delete) un cliente
+DELIMITER $$
+CREATE PROCEDURE clienteEliminar(
+    IN p_id_cliente INT
+)
+BEGIN
+    UPDATE clientes 
+    SET id_estado_cliente = 2 
+    WHERE id_cliente = p_id_cliente;
+    
+    SELECT 'Cliente eliminado correctamente' AS mensaje;
+END $$
+DELIMITER ;
+
+-- Procedimiento para obtener estadísticas del dashboard
+DELIMITER $$
+CREATE PROCEDURE dashboardEstadisticas()
+BEGIN
+    SELECT 
+        (SELECT COUNT(*) FROM pedidos WHERE id_estado_pedido IN (1,2)) as pedidos_pendientes,
+        (SELECT COUNT(*) FROM entregas WHERE id_estado_entrega IN (1,2)) as entregas_pendientes,
+        (SELECT COUNT(*) FROM rutas WHERE id_estado_ruta = 1) as rutas_activas,
+        (SELECT COUNT(*) FROM incidencias WHERE id_estado_incidencia = 1) as incidencias_activas,
+        (SELECT ROUND(
+            (SELECT COUNT(*) FROM entregas WHERE id_estado_entrega = 5) * 100.0 / 
+            NULLIF((SELECT COUNT(*) FROM entregas), 0), 2
+        )) as tasa_exito;
+END $$
+DELIMITER ;
+
+-- Procedimiento para obtener entregas de un repartidor específico
+DELIMITER $$
+CREATE PROCEDURE entregasObtenerPorRepartidor(
+    IN p_id_repartidor INT
+)
+BEGIN
+    SELECT 
+        e.*, 
+        p.id_pedido, 
+        c.nombre as nombre_cliente, 
+        ee.nombre_estado, 
+        r.nombre_ruta
+    FROM entregas e
+    JOIN pedidos p ON e.id_pedido = p.id_pedido
+    JOIN clientes c ON p.id_cliente = c.id_cliente
+    JOIN estados_entrega ee ON e.id_estado_entrega = ee.id_estado_entrega
+    LEFT JOIN rutas r ON e.id_ruta = r.id_ruta
+    WHERE e.id_repartidor = p_id_repartidor
+    ORDER BY e.fecha_estimada_entrega DESC;
+END $$
+DELIMITER ;
+
+-- Procedimiento para obtener todas las entregas (admin/planificador)
+DELIMITER $$
+CREATE PROCEDURE entregasObtenerTodas()
+BEGIN
+    SELECT 
+        e.*, 
+        p.id_pedido, 
+        c.nombre as nombre_cliente, 
+        ee.nombre_estado, 
+        r.nombre_ruta, 
+        u.nombre as nombre_repartidor
+    FROM entregas e
+    JOIN pedidos p ON e.id_pedido = p.id_pedido
+    JOIN clientes c ON p.id_cliente = c.id_cliente
+    JOIN estados_entrega ee ON e.id_estado_entrega = ee.id_estado_entrega
+    LEFT JOIN rutas r ON e.id_ruta = r.id_ruta
+    LEFT JOIN usuarios u ON e.id_repartidor = u.id_usuario
+    ORDER BY e.fecha_estimada_entrega DESC;
+END $$
+DELIMITER ;
+
+-- Procedimiento para obtener una entrega específica por ID
+DELIMITER $$
+CREATE PROCEDURE entregaObtenerPorId(
+    IN p_id_entrega INT
+)
+BEGIN
+    SELECT 
+        e.*, 
+        p.id_pedido, 
+        c.nombre as nombre_cliente, 
+        ee.nombre_estado, 
+        r.nombre_ruta, 
+        u.nombre as nombre_repartidor,
+        dc.direccion
+    FROM entregas e
+    JOIN pedidos p ON e.id_pedido = p.id_pedido
+    JOIN clientes c ON p.id_cliente = c.id_cliente
+    JOIN estados_entrega ee ON e.id_estado_entrega = ee.id_estado_entrega
+    LEFT JOIN rutas r ON e.id_ruta = r.id_ruta
+    LEFT JOIN usuarios u ON e.id_repartidor = u.id_usuario
+    JOIN direcciones_cliente dc ON p.id_direccion_entrega = dc.id_direccion
+    WHERE e.id_entrega = p_id_entrega;
+END $$
+DELIMITER ;
+
+-- Procedimiento para obtener todas las incidencias
+DELIMITER $$
+CREATE PROCEDURE incidenciasObtenerTodas()
+BEGIN
+    SELECT 
+        i.*, 
+        z.nombre_zona, 
+        ti.nombre_tipo, 
+        ei.nombre_estado,
+        ni.nombre_nivel, 
+        u.nombre as nombre_reporta
+    FROM incidencias i
+    JOIN zonas z ON i.id_zona = z.id_zona
+    JOIN tipos_incidencia ti ON i.id_tipo_incidencia = ti.id_tipo_incidencia
+    JOIN estados_incidencia ei ON i.id_estado_incidencia = ei.id_estado_incidencia
+    JOIN niveles_impacto ni ON i.id_nivel_impacto = ni.id_nivel_impacto
+    LEFT JOIN usuarios u ON i.id_usuario_reporta = u.id_usuario
+    ORDER BY i.fecha_inicio DESC;
+END $$
+DELIMITER ;
+
+-- Procedimiento para obtener todas las rutas
+DELIMITER $$
+CREATE PROCEDURE rutasObtenerTodas()
+BEGIN
+    SELECT 
+        r.*, 
+        z.nombre_zona, 
+        u.nombre as nombre_repartidor,
+        v.placa, 
+        er.nombre_estado
+    FROM rutas r
+    JOIN zonas z ON r.id_zona = z.id_zona
+    LEFT JOIN usuarios u ON r.id_repartidor = u.id_usuario
+    LEFT JOIN vehiculos v ON r.id_vehiculo = v.id_vehiculo
+    JOIN estados_ruta er ON r.id_estado_ruta = er.id_estado_ruta
+    ORDER BY r.fecha_ruta DESC, r.id_ruta DESC;
+END $$
+DELIMITER ;
+
+-- Procedimiento para obtener una ruta específica por ID con sus paradas
+DELIMITER $$
+CREATE PROCEDURE rutaObtenerPorId(
+    IN p_id_ruta INT
+)
+BEGIN
+    -- Obtener información básica de la ruta
+    SELECT 
+        r.*, 
+        z.nombre_zona, 
+        u.nombre as nombre_repartidor,
+        v.placa, 
+        er.nombre_estado
+    FROM rutas r
+    JOIN zonas z ON r.id_zona = z.id_zona
+    LEFT JOIN usuarios u ON r.id_repartidor = u.id_usuario
+    LEFT JOIN vehiculos v ON r.id_vehiculo = v.id_vehiculo
+    JOIN estados_ruta er ON r.id_estado_ruta = er.id_estado_ruta
+    WHERE r.id_ruta = p_id_ruta;
+    
+    -- Obtener las paradas de la ruta
+    SELECT 
+        pr.*, 
+        p.id_pedido, 
+        c.nombre as nombre_cliente,
+        dc.direccion
+    FROM paradas_ruta pr
+    JOIN pedidos p ON pr.id_pedido = p.id_pedido
+    JOIN clientes c ON p.id_cliente = c.id_cliente
+    JOIN direcciones_cliente dc ON p.id_direccion_entrega = dc.id_direccion
+    WHERE pr.id_ruta = p_id_ruta
+    ORDER BY pr.orden_secuencia;
+END $$
+DELIMITER ;

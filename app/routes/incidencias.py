@@ -9,19 +9,10 @@ def init_incidencias_routes(app, mysql):
     @incidencias_bp.route('/api/incidencias', methods=['GET'])
     @login_required
     def obtener_incidencias():
-        """Obtener todas las incidencias"""
+        """Obtener todas las incidencias - PROCEDIMIENTO"""
         try:
             cur = mysql.connection.cursor()
-            cur.execute("""
-                SELECT i.*, z.nombre_zona, ti.nombre_tipo, ei.nombre_estado,
-                       ni.nombre_nivel, u.nombre as nombre_reporta
-                FROM incidencias i
-                JOIN zonas z ON i.id_zona = z.id_zona
-                JOIN tipos_incidencia ti ON i.id_tipo_incidencia = ti.id_tipo_incidencia
-                JOIN estados_incidencia ei ON i.id_estado_incidencia = ei.id_estado_incidencia
-                JOIN niveles_impacto ni ON i.id_nivel_impacto = ni.id_nivel_impacto
-                LEFT JOIN usuarios u ON i.id_usuario_reporta = u.id_usuario
-            """)
+            cur.callproc('incidenciasObtenerTodas')
             incidencias = cur.fetchall()
             cur.close()
             return jsonify(incidencias)
@@ -32,7 +23,7 @@ def init_incidencias_routes(app, mysql):
     @login_required
     @role_required([1, 2, 3])
     def crear_incidencia():
-        """Crear nueva incidencia"""
+        """Crear nueva incidencia - PROCEDIMIENTO EXISTENTE"""
         try:
             data = request.get_json()
             cur = mysql.connection.cursor()
