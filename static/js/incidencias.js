@@ -160,7 +160,6 @@ class IncidenciasApp {
 
         tbody.innerHTML = this.incidencias.map(incidencia => `
             <tr class="${this.obtenerClaseUrgencia(incidencia)}">
-                <td><strong>#${incidencia.id_incidencia}</strong></td>
                 <td>
                     <span class="tipo-badge tipo-${this.getTipoSlug(incidencia.id_tipo_incidencia)}">
                         ${this.getTipoTexto(incidencia.id_tipo_incidencia)}

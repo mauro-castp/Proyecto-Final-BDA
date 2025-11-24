@@ -264,9 +264,8 @@ class RutasApp {
 
         tbody.innerHTML = this.rutas.map(ruta => `
             <tr>
-                <td><strong>#${ruta.id_ruta}</strong></td>
                 <td>
-                    <strong>${ruta.nombre_ruta || `Ruta ${ruta.id_ruta}`}</strong>
+                    <strong>${ruta.nombre_ruta}</strong>
                     ${this.esRutaUrgente(ruta) ? '<span class="badge bg-danger ms-1">Urgente</span>' : ''}
                 </td>
                 <td>${this.getNombreZona(ruta.id_zona)}</td>

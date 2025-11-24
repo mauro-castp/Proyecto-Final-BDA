@@ -174,7 +174,6 @@ class PedidosApp {
 
         tbody.innerHTML = this.pedidos.map(pedido => `
             <tr>
-                <td><strong>#${pedido.id_pedido}</strong></td>
                 <td>${pedido.cliente_nombre || 'N/A'}</td>
                 <td>${this.formatearFecha(pedido.fecha_pedido)}</td>
                 <td>${pedido.cantidad_productos || 0} productos</td>

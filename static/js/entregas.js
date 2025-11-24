@@ -229,11 +229,6 @@ class EntregasApp {
 
         tbody.innerHTML = this.entregas.map(entrega => `
             <tr class="${this.obtenerClasePrioridad(entrega)}">
-                <td><strong>#${entrega.id_entrega}</strong></td>
-                <td>
-                    <strong>#${entrega.id_pedido}</strong>
-                    ${this.esUrgente(entrega) ? '<span class="urgente" title="Entrega urgente">🚨</span>' : ''}
-                </td>
                 <td>${entrega.nombre_cliente || 'N/A'}</td>
                 <td>${entrega.nombre_repartidor || 'No asignado'}</td>
                 <td>${entrega.nombre_ruta || 'N/A'}</td>
