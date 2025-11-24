@@ -9,10 +9,10 @@ def init_vistas_routes(app, mysql):
     @vistas_bp.route('/api/vistas/entregas-hoy')
     @login_required
     def obtener_entregas_hoy():
-        """Obtener entregas planificadas para hoy - VISTA"""
+        """Obtener entregas planificadas para hoy - PROCEDIMIENTO"""
         try:
             cur = mysql.connection.cursor()
-            cur.execute("SELECT * FROM vEntregasHoy")
+            cur.callproc('dashboardEntregasHoy')
             entregas = cur.fetchall()
             cur.close()
             return jsonify(entregas)
@@ -23,10 +23,10 @@ def init_vistas_routes(app, mysql):
     @login_required
     @role_required([1, 4, 2])
     def obtener_otp_ruta_mes():
-        """Obtener OTP por ruta del mes actual - VISTA"""
+        """Obtener OTP por ruta del mes actual - PROCEDIMIENTO"""
         try:
             cur = mysql.connection.cursor()
-            cur.execute("SELECT * FROM vOtpPorRutaMes")
+            cur.callproc('vistaOtpPorRutaMes')
             otp_data = cur.fetchall()
             cur.close()
             return jsonify(otp_data)
@@ -37,10 +37,10 @@ def init_vistas_routes(app, mysql):
     @login_required
     @role_required([1, 4, 2])
     def obtener_costos_km():
-        """Obtener costos por KM por vehículo - VISTA"""
+        """Obtener costos por KM por vehículo - PROCEDIMIENTO"""
         try:
             cur = mysql.connection.cursor()
-            cur.execute("SELECT * FROM vCostosPorKM")
+            cur.callproc('vistaCostosPorKM')
             costos = cur.fetchall()
             cur.close()
             return jsonify(costos)
@@ -50,10 +50,10 @@ def init_vistas_routes(app, mysql):
     @vistas_bp.route('/api/vistas/entregas-zona')
     @login_required
     def obtener_entregas_zona():
-        """Obtener entregas por zona - VISTA"""
+        """Obtener entregas por zona - PROCEDIMIENTO"""
         try:
             cur = mysql.connection.cursor()
-            cur.execute("SELECT * FROM vEntregasPorZona")
+            cur.callproc('dashboardEntregasPorZona')
             entregas_zona = cur.fetchall()
             cur.close()
             return jsonify(entregas_zona)
@@ -63,10 +63,10 @@ def init_vistas_routes(app, mysql):
     @vistas_bp.route('/api/vistas/incidencias-activas')
     @login_required
     def obtener_incidencias_activas():
-        """Obtener incidencias activas - VISTA"""
+        """Obtener incidencias activas - PROCEDIMIENTO"""
         try:
             cur = mysql.connection.cursor()
-            cur.execute("SELECT * FROM vIncidenciasActivas")
+            cur.callproc('dashboardIncidenciasActivas')
             incidencias = cur.fetchall()
             cur.close()
             return jsonify(incidencias)
@@ -77,10 +77,10 @@ def init_vistas_routes(app, mysql):
     @login_required
     @role_required([1, 4, 2])
     def obtener_tiempo_promedio_entrega():
-        """Obtener tiempo promedio de entrega - VISTA"""
+        """Obtener tiempo promedio de entrega - PROCEDIMIENTO"""
         try:
             cur = mysql.connection.cursor()
-            cur.execute("SELECT * FROM vTiempoPromedioEntrega")
+            cur.callproc('dashboardTiempoPromedioEntrega')
             tiempo_promedio = cur.fetchone()
             cur.close()
             return jsonify(tiempo_promedio)
@@ -91,10 +91,10 @@ def init_vistas_routes(app, mysql):
     @login_required
     @role_required([1, 4, 2])
     def obtener_productividad_repartidores():
-        """Obtener productividad de repartidores - VISTA"""
+        """Obtener productividad de repartidores - PROCEDIMIENTO"""
         try:
             cur = mysql.connection.cursor()
-            cur.execute("SELECT * FROM vProductividadRepartidor")
+            cur.callproc('vistaProductividadRepartidores')
             productividad = cur.fetchall()
             cur.close()
             return jsonify(productividad)
@@ -104,10 +104,10 @@ def init_vistas_routes(app, mysql):
     @vistas_bp.route('/api/vistas/pedidos-por-estado')
     @login_required
     def obtener_pedidos_por_estado():
-        """Obtener pedidos por estado - VISTA"""
+        """Obtener pedidos por estado - PROCEDIMIENTO"""
         try:
             cur = mysql.connection.cursor()
-            cur.execute("SELECT * FROM vPedidosPorEstado")
+            cur.callproc('dashboardPedidosPorEstado')
             pedidos_estado = cur.fetchall()
             cur.close()
             return jsonify(pedidos_estado)

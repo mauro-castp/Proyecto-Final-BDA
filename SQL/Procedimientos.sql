@@ -1019,3 +1019,53 @@ BEGIN
     ORDER BY pr.orden_secuencia;
 END $$
 DELIMITER ;
+
+-- Procedimientos para reemplazar las vistas del dashboard
+DELIMITER $$
+
+CREATE PROCEDURE dashboardPedidosPorEstado()
+BEGIN
+    SELECT * FROM vPedidosPorEstado;
+END $$
+
+CREATE PROCEDURE dashboardEntregasHoy()
+BEGIN
+    SELECT * FROM vEntregasHoy;
+END $$
+
+CREATE PROCEDURE dashboardIncidenciasActivas()
+BEGIN
+    SELECT * FROM vIncidenciasActivas;
+END $$
+
+CREATE PROCEDURE dashboardEntregasPorZona()
+BEGIN
+    SELECT * FROM vEntregasPorZona;
+END $$
+
+CREATE PROCEDURE dashboardTiempoPromedioEntrega()
+BEGIN
+    SELECT * FROM vTiempoPromedioEntrega;
+END $$
+
+DELIMITER ;
+
+-- Solo estos 3 procedimientos faltan para completar todas las vistas
+DELIMITER $$
+
+CREATE PROCEDURE vistaOtpPorRutaMes()
+BEGIN
+    SELECT * FROM vOtpPorRutaMes;
+END $$
+
+CREATE PROCEDURE vistaCostosPorKM()
+BEGIN
+    SELECT * FROM vCostosPorKM;
+END $$
+
+CREATE PROCEDURE vistaProductividadRepartidores()
+BEGIN
+    SELECT * FROM vProductividadRepartidor;
+END $$
+
+DELIMITER ;

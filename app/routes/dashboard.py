@@ -9,7 +9,7 @@ def init_dashboard_routes(app, mysql):
     @dashboard_bp.route('/api/dashboard/estadisticas')
     @login_required
     def obtener_estadisticas_dashboard():
-        """Obtener estadísticas para el dashboard - PROCEDIMIENTOS Y VISTAS"""
+        """Obtener estadísticas para el dashboard - SOLO PROCEDIMIENTOS"""
         try:
             cur = mysql.connection.cursor()
             
@@ -17,25 +17,20 @@ def init_dashboard_routes(app, mysql):
             cur.callproc('dashboardEstadisticas')
             stats = cur.fetchone()
             
-            # Datos de vistas para dashboard
-            # Vista: vPedidosPorEstado
-            cur.execute("SELECT * FROM vPedidosPorEstado")
+            # Datos de dashboard - PROCEDIMIENTOS
+            cur.callproc('dashboardPedidosPorEstado')
             pedidos_por_estado = cur.fetchall()
             
-            # Vista: vEntregasHoy
-            cur.execute("SELECT * FROM vEntregasHoy")
+            cur.callproc('dashboardEntregasHoy')
             entregas_hoy = cur.fetchall()
             
-            # Vista: vIncidenciasActivas
-            cur.execute("SELECT * FROM vIncidenciasActivas")
+            cur.callproc('dashboardIncidenciasActivas')
             incidencias_activas = cur.fetchall()
             
-            # Vista: vEntregasPorZona
-            cur.execute("SELECT * FROM vEntregasPorZona")
+            cur.callproc('dashboardEntregasPorZona')
             entregas_zona = cur.fetchall()
             
-            # Vista: vTiempoPromedioEntrega
-            cur.execute("SELECT * FROM vTiempoPromedioEntrega")
+            cur.callproc('dashboardTiempoPromedioEntrega')
             tiempo_promedio_entrega = cur.fetchone()
             
             cur.close()
