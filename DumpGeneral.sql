@@ -1290,10 +1290,10 @@ LOCK TABLES `usuarios` WRITE;
 /*!40000 ALTER TABLE `usuarios` DISABLE KEYS */;
 set autocommit=0;
 INSERT INTO `usuarios` VALUES
-(5,'Administrador General','admin@demo.com','240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9',9,1,'2025-11-16 08:20:43','2025-11-16 08:20:43'),
-(6,'Planificador Central','planificador@demo.com','22ab6a65b4e819b25a52b7bd9b34c1e91c8ddc4d5861a2a2c193eae89fccd24d',10,1,'2025-11-16 08:20:43','2025-11-16 08:20:43'),
-(7,'Repartidor Demo','repartidor@demo.com','9c410f599d2b705887a40ba8d3b769dda7721929e5a9ef6999c409bc6125fda2',11,1,'2025-11-16 08:20:43','2025-11-16 08:20:43'),
-(8,'Auditor Demo','auditor@demo.com','0b26f7caa1c2e5e3f11adfd22f47403ed214a1d4451117a18ea726b451a3aa61',12,1,'2025-11-16 08:20:43','2025-11-16 08:20:43');
+(5,'Administrador General','admin@demo.com','admin123',9,1,'2025-11-16 08:20:43','2025-11-16 08:20:43'),
+(6,'Planificador Central','planificador@demo.com','plan123',10,1,'2025-11-16 08:20:43','2025-11-16 08:20:43'),
+(7,'Repartidor Demo','repartidor@demo.com','rep123',11,1,'2025-11-16 08:20:43','2025-11-16 08:20:43'),
+(8,'Auditor Demo','auditor@demo.com','aud123',12,1,'2025-11-16 08:20:43','2025-11-16 08:20:43');
 /*!40000 ALTER TABLE `usuarios` ENABLE KEYS */;
 UNLOCK TABLES;
 commit;
