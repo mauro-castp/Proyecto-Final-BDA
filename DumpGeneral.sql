@@ -82,13 +82,22 @@ DROP TABLE IF EXISTS `aud_incidencias`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `aud_incidencias` (
-  `id_log` int(11) NOT NULL AUTO_INCREMENT,
-  `id_incidencia` int(11) DEFAULT NULL,
-  `valores_anteriores` longtext CHARACTER SET utf8mb4 DEFAULT NULL CHECK (json_valid(`valores_anteriores`)),
-  `valores_nuevos` longtext CHARACTER SET utf8mb4 DEFAULT NULL CHECK (json_valid(`valores_nuevos`)),
-  `usuario` varchar(100) DEFAULT NULL,
-  `fecha` timestamp NULL DEFAULT current_timestamp(),
-  PRIMARY KEY (`id_log`)
+  `id_log` INT NOT NULL AUTO_INCREMENT,
+  `id_incidencia` INT DEFAULT NULL,
+  `id_tipo_incidencia` INT DEFAULT NULL,
+  `id_zona` INT DEFAULT NULL,
+  `descripcion` TEXT DEFAULT NULL,
+  `fecha_inicio` TIMESTAMP NULL DEFAULT NULL,
+  `fecha_fin` TIMESTAMP NULL DEFAULT NULL,
+  `id_estado_incidencia` INT DEFAULT NULL,
+  `id_nivel_impacto` INT DEFAULT NULL,
+  `usuario_reporta` VARCHAR(100) DEFAULT NULL,
+  `geolocalizacion` VARCHAR(255) DEFAULT NULL,
+  `fecha` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP(),
+  PRIMARY KEY (`id_log`),
+  INDEX idx_id_incidencia (`id_incidencia`),
+  INDEX idx_fecha (`fecha`),
+  INDEX idx_estado (`id_estado_incidencia`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 

@@ -216,49 +216,113 @@ DELIMITER ;
 -- Triggers de Auditoría para la tabla `incidencias`
 -- -----------------------------------------------------
 DELIMITER $$
-CREATE TRIGGER incidencias_ai
-AFTER INSERT ON incidencias
-FOR EACH ROW
+CREATE TRIGGER after_incidencias_insert
+    AFTER INSERT ON incidencias
+    FOR EACH ROW
 BEGIN
+    DECLARE v_usuario_reporta_nombre VARCHAR(100);
+    DECLARE v_geolocalizacion_text VARCHAR(255);
+    
+    -- Obtener nombre del usuario que reporta
+    SELECT nombre INTO v_usuario_reporta_nombre
+    FROM usuarios 
+    WHERE id_usuario = NEW.id_usuario_reporta;
+    
+    -- Obtener geolocalización si existe
+    IF NEW.id_geo IS NOT NULL THEN
+        SELECT CONCAT(latitud, ', ', longitud) INTO v_geolocalizacion_text
+        FROM geolocalizacion 
+        WHERE id_geo = NEW.id_geo;
+    ELSE
+        SET v_geolocalizacion_text = NULL;
+    END IF;
+    
+    -- Insertar en auditoría
     INSERT INTO aud_incidencias (
-        id_incidencia, valores_anteriores, valores_nuevos, usuario, fecha
+        id_incidencia,
+        id_tipo_incidencia,
+        id_zona,
+        descripcion,
+        fecha_inicio,
+        fecha_fin,
+        id_estado_incidencia,
+        id_nivel_impacto,
+        usuario_reporta,
+        geolocalizacion
     ) VALUES (
-        NEW.id_incidencia, NULL,
-        JSON_OBJECT(
-            'id_tipo_incidencia', NEW.id_tipo_incidencia, 'id_zona', NEW.id_zona, 'descripcion', NEW.descripcion,
-            'fecha_inicio', NEW.fecha_inicio, 'fecha_fin', NEW.fecha_fin, 'id_estado_incidencia', NEW.id_estado_incidencia,
-            'id_nivel_impacto', NEW.id_nivel_impacto, 'radio_afectacion_km', NEW.radio_afectacion_km,
-            'id_usuario_reporta', NEW.id_usuario_reporta, 'id_geo', NEW.id_geo
-        ),
-        CURRENT_USER(), NOW()
+        NEW.id_incidencia,
+        NEW.id_tipo_incidencia,
+        NEW.id_zona,
+        NEW.descripcion,
+        NEW.fecha_inicio,
+        NEW.fecha_fin,
+        NEW.id_estado_incidencia,
+        NEW.id_nivel_impacto,
+        v_usuario_reporta_nombre,
+        v_geolocalizacion_text
     );
-END$$ 
+END $$
 DELIMITER ;
 
 DELIMITER $$
-CREATE TRIGGER incidencias_au
-AFTER UPDATE ON incidencias
-FOR EACH ROW
+CREATE TRIGGER after_incidencias_update
+    AFTER UPDATE ON incidencias
+    FOR EACH ROW
 BEGIN
-    INSERT INTO aud_incidencias (
-        id_incidencia, valores_anteriores, valores_nuevos, usuario, fecha
-    ) VALUES (
-        NEW.id_incidencia,
-        JSON_OBJECT(
-            'id_tipo_incidencia', OLD.id_tipo_incidencia, 'id_zona', OLD.id_zona, 'descripcion', OLD.descripcion,
-            'fecha_inicio', OLD.fecha_inicio, 'fecha_fin', OLD.fecha_fin, 'id_estado_incidencia', OLD.id_estado_incidencia,
-            'id_nivel_impacto', OLD.id_nivel_impacto, 'radio_afectacion_km', OLD.radio_afectacion_km,
-            'id_usuario_reporta', OLD.id_usuario_reporta, 'id_geo', OLD.id_geo
-        ),
-        JSON_OBJECT(
-            'id_tipo_incidencia', NEW.id_tipo_incidencia, 'id_zona', NEW.id_zona, 'descripcion', NEW.descripcion,
-            'fecha_inicio', NEW.fecha_inicio, 'fecha_fin', NEW.fecha_fin, 'id_estado_incidencia', NEW.id_estado_incidencia,
-            'id_nivel_impacto', NEW.id_nivel_impacto, 'radio_afectacion_km', NEW.radio_afectacion_km,
-            'id_usuario_reporta', NEW.id_usuario_reporta, 'id_geo', NEW.id_geo
-        ),
-        CURRENT_USER(), NOW()
-    );
-END$$ 
+    DECLARE v_usuario_reporta_nombre VARCHAR(100);
+    DECLARE v_geolocalizacion_text VARCHAR(255);
+    
+    -- Solo auditar si hay cambios reales
+    IF OLD.id_estado_incidencia != NEW.id_estado_incidencia 
+       OR OLD.fecha_fin != NEW.fecha_fin 
+       OR OLD.id_nivel_impacto != NEW.id_nivel_impacto THEN
+        
+        -- Obtener nombre del usuario que reporta
+        SELECT nombre INTO v_usuario_reporta_nombre
+        FROM usuarios 
+        WHERE id_usuario = NEW.id_usuario_reporta;
+        
+        -- Obtener geolocalización si existe
+        IF NEW.id_geo IS NOT NULL THEN
+            SELECT CONCAT(latitud, ', ', longitud) INTO v_geolocalizacion_text
+            FROM geolocalizacion 
+            WHERE id_geo = NEW.id_geo;
+        ELSE
+            SET v_geolocalizacion_text = NULL;
+        END IF;
+        
+        -- Insertar en auditoría
+        INSERT INTO aud_incidencias (
+            id_incidencia,
+            id_tipo_incidencia,
+            id_zona,
+            descripcion,
+            fecha_inicio,
+            fecha_fin,
+            id_estado_incidencia,
+            id_nivel_impacto,
+            usuario_reporta,
+            geolocalizacion
+        ) VALUES (
+            NEW.id_incidencia,
+            NEW.id_tipo_incidencia,
+            NEW.id_zona,
+            CONCAT(
+                NEW.descripcion, 
+                ' | Estado cambiado: ', 
+                (SELECT nombre_estado FROM estados_incidencia WHERE id_estado_incidencia = OLD.id_estado_incidencia),
+                ' → ',
+                (SELECT nombre_estado FROM estados_incidencia WHERE id_estado_incidencia = NEW.id_estado_incidencia)
+            ),
+            NEW.fecha_inicio,
+            NEW.fecha_fin,
+            NEW.id_estado_incidencia,
+            NEW.id_nivel_impacto,
+            v_usuario_reporta_nombre,
+            v_geolocalizacion_text
+        );
+    END IF;
+END $$
 DELIMITER ;
 
 DELIMITER $$

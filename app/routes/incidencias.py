@@ -23,23 +23,55 @@ def init_incidencias_routes(app, mysql):
     @login_required
     @role_required([1, 2, 3])
     def crear_incidencia():
-        """Crear nueva incidencia - PROCEDIMIENTO EXISTENTE"""
+        """Crear nueva incidencia"""
         try:
             data = request.get_json()
+            user_id = session.get('user_id', 1)
+            
             cur = mysql.connection.cursor()
             
             cur.callproc('incidenciaRegistrar', [
                 data['id_zona'],
                 data['id_tipo_incidencia'],
-                data['desde'],
-                data.get('hasta')
+                data['descripcion'],
+                data['fecha_inicio'],
+                data.get('fecha_fin'),
+                data['id_nivel_impacto'],
+                user_id,
+                data.get('observaciones', '')
             ])
+            
             result = cur.fetchone()
             mysql.connection.commit()
             cur.close()
             
-            return jsonify({'message': 'Incidencia registrada', 'id': result['id_incidencia']})
+            return jsonify({
+                'message': 'Incidencia registrada correctamente', 
+                'id': result['id_incidencia']
+            })
         except Exception as e:
             return jsonify({'error': str(e)}), 500
 
-    return incidencias_bp
+    @incidencias_bp.route('/api/incidencias/<int:id>', methods=['PUT'])
+    @login_required
+    @role_required([1, 2, 3])
+    def actualizar_incidencia(id):
+        """Actualizar estado de incidencia"""
+        try:
+            data = request.get_json()
+            
+            cur = mysql.connection.cursor()
+            cur.callproc('incidenciaActualizar', [
+                id,
+                data['id_estado_incidencia'],
+                data.get('fecha_fin'),
+                data.get('comentario', '')
+            ])
+            
+            result = cur.fetchone()
+            mysql.connection.commit()
+            cur.close()
+            
+            return jsonify({'message': result['mensaje']})
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500

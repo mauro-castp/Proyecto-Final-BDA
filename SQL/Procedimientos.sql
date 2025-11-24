@@ -563,30 +563,61 @@ DELIMITER ;
 
 -- incidenciaRegistrar
 
+DROP PROCEDURE IF EXISTS incidenciaRegistrar;
+
 DELIMITER $$
 CREATE PROCEDURE incidenciaRegistrar(
     IN p_id_zona INT,
     IN p_id_tipo_incidencia INT,
-    IN p_desde DATETIME,
-    IN p_hasta DATETIME
+    IN p_descripcion TEXT,
+    IN p_fecha_inicio DATETIME,
+    IN p_fecha_fin DATETIME,
+    IN p_id_nivel_impacto INT,
+    IN p_id_usuario_reporta INT,
+    IN p_observaciones TEXT
 )
 BEGIN
     INSERT INTO incidencias(
         id_zona,
         id_tipo_incidencia,
+        descripcion,
         fecha_inicio,
         fecha_fin,
-        id_estado_incidencia
+        id_estado_incidencia,
+        id_nivel_impacto,
+        id_usuario_reporta
     )
     VALUES(
         p_id_zona,
         p_id_tipo_incidencia,
-        p_desde,
-        p_hasta,
-        1
+        p_descripcion,
+        p_fecha_inicio,
+        p_fecha_fin,
+        1, -- Estado: Activa
+        p_id_nivel_impacto,
+        p_id_usuario_reporta
     );
 
     SELECT LAST_INSERT_ID() AS id_incidencia;
+END $$
+DELIMITER ;
+
+DELIMITER $$
+CREATE PROCEDURE incidenciaActualizar(
+    IN p_id_incidencia INT,
+    IN p_id_estado_incidencia INT,
+    IN p_fecha_fin DATETIME,
+    IN p_comentario TEXT
+)
+BEGIN
+    UPDATE incidencias 
+    SET 
+        id_estado_incidencia = p_id_estado_incidencia,
+        fecha_fin = p_fecha_fin,
+        fecha_actualizacion = NOW()
+    WHERE id_incidencia = p_id_incidencia;
+    
+    SELECT 'Incidencia actualizada correctamente' AS mensaje;
 END $$
 DELIMITER ;
 
