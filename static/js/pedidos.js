@@ -1,15 +1,19 @@
+// static/js/pedidos.js
 class PedidosApp {
     constructor() {
         this.pedidos = [];
         this.clientes = [];
         this.productos = [];
+        this.empresas = [];
+        this.pedidoEditando = null;
         this.paginaActual = 1;
         this.totalPaginas = 1;
         this.totalRegistros = 0;
         this.registrosPorPagina = 10;
         this.filtros = {
             estado: '',
-            fecha: ''
+            fecha: '',
+            empresa: ''
         };
         this.init();
     }
@@ -30,12 +34,9 @@ class PedidosApp {
             this.filtros.fecha = e.target.value;
         });
 
-        const clienteSelect = document.getElementById('clienteSelect');
-        if (clienteSelect) {
-            clienteSelect.addEventListener('change', (e) => {
-                this.cargarDireccionesCliente(e.target.value);
-            });
-        }
+        document.getElementById('filtroEmpresa').addEventListener('change', (e) => {
+            this.filtros.empresa = e.target.value;
+        });
 
         // Paginación
         document.getElementById('btnAnterior').addEventListener('click', () => {
@@ -52,22 +53,27 @@ class PedidosApp {
             }
         });
 
-        // Eventos de productos en modal
-        document.addEventListener('change', (e) => {
-            if (e.target.classList.contains('producto-select')) {
-                this.actualizarPrecioProducto(e.target);
+        // Cerrar modales al hacer clic fuera
+        window.onclick = (event) => {
+            const modalNuevo = document.getElementById('modalNuevoPedido');
+            const modalDetalles = document.getElementById('modalDetallesPedido');
+            
+            if (event.target === modalNuevo) {
+                this.cerrarModal();
             }
-            if (e.target.classList.contains('cantidad-input')) {
-                this.actualizarSubtotalProducto(e.target);
+            if (event.target === modalDetalles) {
+                this.cerrarModalDetalles();
             }
-        });
+        };
     }
 
     async cargarDatosIniciales() {
         try {
             await Promise.all([
                 this.cargarClientes(),
-                this.cargarProductos()
+                this.cargarProductos(),
+                this.cargarEmpresas(),
+                this.cargarEmpresasFiltro()
             ]);
         } catch (error) {
             console.error('Error cargando datos iniciales:', error);
@@ -105,48 +111,64 @@ class PedidosApp {
     }
 
     async cargarClientes() {
-        const response = await fetch('/api/clientes');
+        const response = await fetch('/api/pedidos/clientes-activos');
         if (!response.ok) throw new Error('Error cargando clientes');
         this.clientes = await response.json();
     }
 
     async cargarProductos() {
-        const response = await fetch('/api/productos');
+        const response = await fetch('/api/pedidos/productos-activos');
         if (!response.ok) throw new Error('Error cargando productos');
         this.productos = await response.json();
     }
 
-    resetDireccionesSelect() {
-        const select = document.getElementById('direccionEntrega');
+    async cargarEmpresas() {
+        const response = await fetch('/api/pedidos/empresas-activas');
+        if (!response.ok) throw new Error('Error cargando empresas');
+        this.empresas = await response.json();
+    }
+
+    async cargarEmpresasFiltro() {
+        const select = document.getElementById('filtroEmpresa');
         if (!select) return;
-        select.innerHTML = '<option value="">Seleccionar dirección...</option>';
-        select.value = '';
-        select.disabled = true;
+
+        try {
+            const response = await fetch('/api/pedidos/empresas-activas');
+            if (!response.ok) throw new Error('Error cargando empresas');
+            const empresas = await response.json();
+
+            select.innerHTML = '<option value="">Todas las empresas</option>' +
+                empresas.map(empresa => 
+                    `<option value="${empresa.id_empresa}">${empresa.nombre}</option>`
+                ).join('');
+        } catch (error) {
+            console.error('Error cargando empresas para filtro:', error);
+        }
     }
 
     async cargarDireccionesCliente(clienteId) {
-        const select = document.getElementById('direccionEntrega');
+        const select = document.getElementById('direccionPedido');
         if (!select) return;
 
-        this.resetDireccionesSelect();
+        select.innerHTML = '<option value="">Seleccionar dirección...</option>';
+        select.disabled = true;
+
         if (!clienteId) return;
 
         try {
-            const response = await fetch(`/api/clientes/${clienteId}/direcciones`);
+            const response = await fetch(`/api/pedidos/cliente/${clienteId}/direcciones`);
             if (!response.ok) throw new Error('Error cargando direcciones');
             const direcciones = await response.json();
 
             if (direcciones.length === 0) {
                 select.innerHTML += '<option value="" disabled>Sin direcciones registradas</option>';
-                select.disabled = false;
-                return;
+            } else {
+                select.innerHTML += direcciones.map(dir => `
+                    <option value="${dir.id_direccion}">
+                        ${dir.direccion}${dir.es_principal ? ' (Principal)' : ''}
+                    </option>
+                `).join('');
             }
-
-            select.innerHTML += direcciones.map(dir => `
-                <option value="${dir.id_direccion}">
-                    ${dir.direccion}${dir.es_principal ? ' (Principal)' : ''}
-                </option>
-            `).join('');
             select.disabled = false;
         } catch (error) {
             console.error('Error cargando direcciones:', error);
@@ -161,7 +183,7 @@ class PedidosApp {
         if (this.pedidos.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="7" class="text-center">
+                    <td colspan="8" class="text-center">
                         <div class="loading-spinner">
                             <i class="fas fa-inbox"></i>
                             <span>No se encontraron pedidos</span>
@@ -174,10 +196,12 @@ class PedidosApp {
 
         tbody.innerHTML = this.pedidos.map(pedido => `
             <tr>
+                <td><strong>#${pedido.id_pedido}</strong></td>
                 <td>${pedido.cliente_nombre || 'N/A'}</td>
+                <td>${pedido.empresa_nombre || 'Sin empresa'}</td>
                 <td>${this.formatearFecha(pedido.fecha_pedido)}</td>
-                <td>${pedido.cantidad_productos || 0} productos</td>
                 <td>$${this.formatearPrecio(pedido.total_pedido || 0)}</td>
+                <td>${pedido.cantidad_productos || 0} productos</td>
                 <td>
                     <span class="estado-badge estado-${(pedido.estado_nombre || 'pendiente').toLowerCase().replace(/\s+/g, '-')}">
                         ${pedido.estado_nombre || 'Pendiente'}
@@ -197,6 +221,11 @@ class PedidosApp {
                             <i class="fas fa-times"></i>
                         </button>
                     ` : ''}
+                    ${this.puedeEliminar(pedido) ? `
+                        <button class="btn-action btn-delete" onclick="pedidosApp.eliminarPedido(${pedido.id_pedido})" title="Eliminar">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    ` : ''}
                 </td>
             </tr>
         `).join('');
@@ -204,12 +233,17 @@ class PedidosApp {
 
     puedeEditar(pedido) {
         const estado = pedido.estado_nombre?.toLowerCase();
-        return estado === 'pendiente' || estado === 'procesando';
+        return estado === 'pendiente' || estado === 'confirmado';
     }
 
     puedeCancelar(pedido) {
         const estado = pedido.estado_nombre?.toLowerCase();
-        return estado === 'pendiente' || estado === 'procesando';
+        return estado === 'pendiente' || estado === 'confirmado' || estado === 'en preparacion';
+    }
+
+    puedeEliminar(pedido) {
+        const estado = pedido.estado_nombre?.toLowerCase();
+        return estado === 'pendiente';
     }
 
     actualizarEstadisticas(estadisticas = {}) {
@@ -243,7 +277,11 @@ class PedidosApp {
         document.getElementById('totalRegistros').textContent = this.totalRegistros;
 
         let paginasHTML = '';
-        for (let i = 1; i <= totalPaginas; i++) {
+        const paginasVisibles = 5;
+        let inicioPagina = Math.max(1, this.paginaActual - Math.floor(paginasVisibles / 2));
+        let finPagina = Math.min(totalPaginas, inicioPagina + paginasVisibles - 1);
+
+        for (let i = inicioPagina; i <= finPagina; i++) {
             paginasHTML += `
                 <button class="page-number ${i === this.paginaActual ? 'active' : ''}" 
                         onclick="pedidosApp.irAPagina(${i})">
@@ -267,116 +305,119 @@ class PedidosApp {
         this.cargarPedidos();
     }
 
-    // Modal Nuevo Pedido
+    // ==================== CRUD OPERATIONS ====================
+
     mostrarModalNuevoPedido() {
+        this.pedidoEditando = null;
+        document.getElementById('modalPedidoTitulo').innerHTML = '<i class="fas fa-plus-circle"></i> Nuevo Pedido';
         this.limpiarFormulario();
         this.cargarClientesModal();
-        this.resetDireccionesSelect();
+        this.cargarEmpresasModal();
         this.cargarProductosModal();
         document.getElementById('modalNuevoPedido').style.display = 'block';
     }
 
     cerrarModal() {
         document.getElementById('modalNuevoPedido').style.display = 'none';
+        this.pedidoEditando = null;
     }
 
     cargarClientesModal() {
-        const select = document.getElementById('clienteSelect');
+        const select = document.getElementById('clientePedido');
         select.innerHTML = '<option value="">Seleccionar cliente...</option>' +
             this.clientes.map(cliente =>
                 `<option value="${cliente.id_cliente}">${cliente.nombre}</option>`
             ).join('');
     }
 
+    cargarEmpresasModal() {
+        const select = document.getElementById('empresaPedido');
+        select.innerHTML = '<option value="">Sin empresa</option>' +
+            this.empresas.map(empresa =>
+                `<option value="${empresa.id_empresa}">${empresa.nombre}</option>`
+            ).join('');
+    }
+
     cargarProductosModal() {
-        const selects = document.querySelectorAll('.producto-select');
-        selects.forEach(select => {
-            select.innerHTML = '<option value="">Seleccionar producto...</option>' +
-                this.productos.map(producto =>
-                    `<option value="${producto.id_producto}" data-precio="${producto.precio_unitario}">
-                        ${producto.nombre} - $${this.formatearPrecio(producto.precio_unitario)}
-                    </option>`
-                ).join('');
-        });
+        const lista = document.getElementById('listaProductos');
+        lista.innerHTML = '';
+        this.agregarProducto(); // Agregar un producto inicial
     }
 
     agregarProducto() {
         const lista = document.getElementById('listaProductos');
-        const plantilla = document.getElementById('productoPlantilla');
-        const nuevoProducto = plantilla.cloneNode(true);
+        const productoBase = document.getElementById('productoBase');
+        const nuevoProducto = productoBase.cloneNode(true);
 
-        nuevoProducto.style.display = 'grid';
+        nuevoProducto.style.display = 'block';
         nuevoProducto.id = '';
-        this.cargarProductosEnSelect(nuevoProducto.querySelector('.producto-select'));
-
-        lista.appendChild(nuevoProducto);
-        this.actualizarResumen();
-    }
-
-    cargarProductosEnSelect(select) {
+        
+        // Cargar productos en el select
+        const select = nuevoProducto.querySelector('.producto-select');
         select.innerHTML = '<option value="">Seleccionar producto...</option>' +
             this.productos.map(producto =>
                 `<option value="${producto.id_producto}" data-precio="${producto.precio_unitario}">
                     ${producto.nombre} - $${this.formatearPrecio(producto.precio_unitario)}
                 </option>`
             ).join('');
+
+        lista.appendChild(nuevoProducto);
+        this.actualizarTotal();
     }
 
     eliminarProducto(boton) {
         const productoItem = boton.closest('.producto-item');
-        productoItem.remove();
-        this.actualizarResumen();
+        if (document.querySelectorAll('.producto-item').length > 1) {
+            productoItem.remove();
+            this.actualizarTotal();
+        } else {
+            this.mostrarError('El pedido debe tener al menos un producto');
+        }
     }
 
-    actualizarPrecioProducto(select) {
+    actualizarPrecio(select) {
         const productoItem = select.closest('.producto-item');
-        const precioUnitario = productoItem.querySelector('.precio-unitario');
+        const precioInput = productoItem.querySelector('.precio-input');
         const opcionSeleccionada = select.selectedOptions[0];
 
         if (opcionSeleccionada && opcionSeleccionada.value) {
             const precio = opcionSeleccionada.getAttribute('data-precio') || '0';
-            precioUnitario.textContent = `$${this.formatearPrecio(precio)}`;
-            this.actualizarSubtotalProducto(select);
+            precioInput.value = `$${this.formatearPrecio(precio)}`;
+            this.actualizarSubtotal(select);
         } else {
-            precioUnitario.textContent = '$0.00';
-            productoItem.querySelector('.subtotal').textContent = '$0.00';
+            precioInput.value = '$0.00';
+            productoItem.querySelector('.subtotal-input').value = '$0.00';
         }
     }
 
-    actualizarSubtotalProducto(elemento) {
+    actualizarSubtotal(elemento) {
         const productoItem = elemento.closest('.producto-item');
         const select = productoItem.querySelector('.producto-select');
         const cantidadInput = productoItem.querySelector('.cantidad-input');
-        const subtotalSpan = productoItem.querySelector('.subtotal');
+        const subtotalInput = productoItem.querySelector('.subtotal-input');
 
         const precio = parseFloat(select.selectedOptions[0]?.getAttribute('data-precio') || 0);
         const cantidad = parseInt(cantidadInput.value) || 0;
         const subtotal = precio * cantidad;
 
-        subtotalSpan.textContent = `$${this.formatearPrecio(subtotal)}`;
-        this.actualizarResumen();
+        subtotalInput.value = `$${this.formatearPrecio(subtotal)}`;
+        this.actualizarTotal();
     }
 
-    actualizarResumen() {
-        let subtotal = 0;
+    actualizarTotal() {
+        let total = 0;
 
         document.querySelectorAll('.producto-item').forEach(item => {
-            if (item.id === 'productoPlantilla' || item.style.display === 'none') {
-                return;
-            }
-            const subtotalTexto = item.querySelector('.subtotal').textContent;
-            subtotal += parseFloat(subtotalTexto.replace('$', '')) || 0;
+            if (item.style.display === 'none') return;
+            
+            const subtotalTexto = item.querySelector('.subtotal-input').value;
+            total += parseFloat(subtotalTexto.replace('$', '')) || 0;
         });
 
-        const envio = subtotal > 0 ? 5.00 : 0; // Envio fijo de ejemplo
-        const total = subtotal + envio;
-
-        document.getElementById('subtotalTotal').textContent = `$${this.formatearPrecio(subtotal)}`;
-        document.getElementById('costoEnvio').textContent = `$${this.formatearPrecio(envio)}`;
-        document.getElementById('totalPedido').textContent = `$${this.formatearPrecio(total)}`;
+        document.getElementById('totalPedido').value = `$${this.formatearPrecio(total)}`;
     }
 
-    async crearPedido() {
+    async guardarPedido() {
         try {
             const formData = this.obtenerDatosFormulario();
 
@@ -384,24 +425,33 @@ class PedidosApp {
                 return;
             }
 
-            const response = await fetch('/api/pedidos', {
-                method: 'POST',
+            const url = this.pedidoEditando ? 
+                `/api/pedidos/${this.pedidoEditando.id_pedido}` : 
+                '/api/pedidos';
+            
+            const method = this.pedidoEditando ? 'PUT' : 'POST';
+
+            const response = await fetch(url, {
+                method: method,
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify(formData)
             });
 
-            if (!response.ok) throw new Error('Error creando pedido');
-
             const result = await response.json();
-            this.mostrarExito('Pedido creado exitosamente');
+            
+            if (!response.ok) {
+                throw new Error(result.error || 'Error guardando pedido');
+            }
+
+            this.mostrarExito(result.message || (this.pedidoEditando ? 'Pedido actualizado exitosamente' : 'Pedido creado exitosamente'));
             this.cerrarModal();
-            this.cargarPedidos();
+            await this.cargarPedidos();
 
         } catch (error) {
-            console.error('Error creando pedido:', error);
-            this.mostrarError('Error al crear el pedido');
+            console.error('Error guardando pedido:', error);
+            this.mostrarError(error.message || 'Error al guardar el pedido');
         }
     }
 
@@ -409,9 +459,7 @@ class PedidosApp {
         const productos = [];
 
         document.querySelectorAll('.producto-item').forEach(item => {
-            if (item.id === 'productoPlantilla' || item.style.display === 'none') {
-                return;
-            }
+            if (item.style.display === 'none') return;
 
             const select = item.querySelector('.producto-select');
             const cantidadInput = item.querySelector('.cantidad-input');
@@ -424,14 +472,26 @@ class PedidosApp {
             }
         });
 
-        return {
-            id_cliente: parseInt(document.getElementById('clienteSelect').value),
-            id_direccion: parseInt(document.getElementById('direccionEntrega').value),
-            items: productos
-        };
+        if (this.pedidoEditando) {
+            return {
+                id_estado_pedido: 1 // Estado por defecto para actualización
+            };
+        } else {
+            return {
+                id_cliente: parseInt(document.getElementById('clientePedido').value),
+                id_direccion: parseInt(document.getElementById('direccionPedido').value),
+                id_empresa: document.getElementById('empresaPedido').value ? 
+                    parseInt(document.getElementById('empresaPedido').value) : null,
+                items: productos
+            };
+        }
     }
 
     validarFormulario(formData) {
+        if (this.pedidoEditando) {
+            return true; // Para edición solo validamos estado básico
+        }
+
         if (!formData.id_cliente) {
             this.mostrarError('Por favor seleccione un cliente');
             return false;
@@ -447,18 +507,128 @@ class PedidosApp {
             return false;
         }
 
+        // Validar que todos los productos tengan cantidad válida
+        for (const item of formData.items) {
+            if (!item.producto || !item.cantidad || item.cantidad < 1) {
+                this.mostrarError('Todos los productos deben tener una cantidad válida');
+                return false;
+            }
+        }
+
         return true;
     }
 
     limpiarFormulario() {
         document.getElementById('formNuevoPedido').reset();
         document.getElementById('listaProductos').innerHTML = '';
-        this.agregarProducto(); // Agregar un producto por defecto
-        this.actualizarResumen();
-        this.resetDireccionesSelect();
+        document.getElementById('direccionPedido').innerHTML = '<option value="">Seleccionar dirección...</option>';
+        document.getElementById('direccionPedido').disabled = true;
+        this.actualizarTotal();
     }
 
-    // Otras funcionalidades
+    async editarPedido(idPedido) {
+        try {
+            const response = await fetch(`/api/pedidos/${idPedido}`);
+            if (!response.ok) throw new Error('Error cargando pedido');
+
+            const pedido = await response.json();
+            this.pedidoEditando = pedido;
+
+            // Cambiar título del modal
+            document.getElementById('modalPedidoTitulo').innerHTML = '<i class="fas fa-edit"></i> Editar Pedido';
+            
+            // En una implementación completa aquí cargarías los datos en el formulario
+            // Por ahora mostramos un mensaje
+            this.mostrarModalNuevoPedido();
+            this.mostrarInfo('Funcionalidad de edición en desarrollo. Por ahora solo puede cambiar el estado.');
+
+        } catch (error) {
+            console.error('Error cargando pedido para editar:', error);
+            this.mostrarError('Error al cargar el pedido para editar');
+        }
+    }
+
+    async eliminarPedido(idPedido) {
+        const result = await Swal.fire({
+            title: '¿Estás seguro?',
+            text: "Esta acción no se puede deshacer",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Sí, eliminar',
+            cancelButtonText: 'Cancelar'
+        });
+
+        if (result.isConfirmed) {
+            try {
+                const response = await fetch(`/api/pedidos/${idPedido}`, {
+                    method: 'DELETE'
+                });
+
+                const result = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(result.error || 'Error eliminando pedido');
+                }
+
+                this.mostrarExito(result.message || 'Pedido eliminado exitosamente');
+                await this.cargarPedidos();
+
+            } catch (error) {
+                console.error('Error eliminando pedido:', error);
+                this.mostrarError(error.message || 'Error al eliminar el pedido');
+            }
+        }
+    }
+
+    async cancelarPedido(idPedido) {
+        const { value: motivo } = await Swal.fire({
+            title: 'Cancelar Pedido',
+            input: 'textarea',
+            inputLabel: 'Motivo de cancelación',
+            inputPlaceholder: 'Ingrese el motivo de la cancelación...',
+            inputAttributes: {
+                'aria-label': 'Ingrese el motivo de la cancelación'
+            },
+            showCancelButton: true,
+            confirmButtonText: 'Cancelar Pedido',
+            cancelButtonText: 'Volver',
+            inputValidator: (value) => {
+                if (!value) {
+                    return 'Debe ingresar un motivo para cancelar el pedido';
+                }
+            }
+        });
+
+        if (motivo) {
+            try {
+                const response = await fetch(`/api/pedidos/${idPedido}/cancelar`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ motivo })
+                });
+
+                const result = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(result.error || 'Error cancelando pedido');
+                }
+
+                this.mostrarExito(result.message || 'Pedido cancelado exitosamente');
+                await this.cargarPedidos();
+
+            } catch (error) {
+                console.error('Error cancelando pedido:', error);
+                this.mostrarError(error.message || 'Error al cancelar el pedido');
+            }
+        }
+    }
+
+    // ==================== DETALLES ====================
+
     async verDetalles(idPedido) {
         try {
             const response = await fetch(`/api/pedidos/${idPedido}`);
@@ -499,6 +669,7 @@ class PedidosApp {
                         <p><strong>Nombre:</strong> ${pedido.cliente_nombre || 'N/A'}</p>
                         <p><strong>Email:</strong> ${pedido.cliente_email || 'N/A'}</p>
                         <p><strong>Teléfono:</strong> ${pedido.cliente_telefono || 'N/A'}</p>
+                        ${pedido.empresa_nombre ? `<p><strong>Empresa:</strong> ${pedido.empresa_nombre}</p>` : ''}
                     </div>
                     
                     <div class="info-group">
@@ -506,60 +677,53 @@ class PedidosApp {
                         <p><strong>Fecha:</strong> ${this.formatearFecha(pedido.fecha_pedido)}</p>
                         <p><strong>Total:</strong> $${this.formatearPrecio(pedido.total_pedido || 0)}</p>
                         <p><strong>Peso total:</strong> ${pedido.peso_total || 0} kg</p>
+                        <p><strong>Volumen total:</strong> ${pedido.volumen_total || 0} m³</p>
+                    </div>
+
+                    <div class="info-group">
+                        <h5>Dirección de Entrega</h5>
+                        <p><strong>Dirección:</strong> ${pedido.direccion_entrega || 'N/A'}</p>
+                        <p><strong>Zona:</strong> ${pedido.nombre_zona || 'N/A'}</p>
                     </div>
                 </div>
                 
-                ${pedido.detalles ? `
+                ${pedido.detalles && pedido.detalles.length > 0 ? `
                     <div class="detalles-productos">
-                        <h5>Productos</h5>
-                        <div class="productos-lista">
-                            ${pedido.detalles.map(detalle => `
-                                <div class="producto-detalle">
-                                    <span>${detalle.nombre_producto}</span>
-                                    <span>${detalle.cantidad} x $${this.formatearPrecio(detalle.precio_unitario)}</span>
-                                    <span>$${this.formatearPrecio(detalle.subtotal)}</span>
-                                </div>
-                            `).join('')}
+                        <h5>Productos (${pedido.detalles.length})</h5>
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Producto</th>
+                                        <th>Cantidad</th>
+                                        <th>Precio Unitario</th>
+                                        <th>Subtotal</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${pedido.detalles.map(detalle => `
+                                        <tr>
+                                            <td>${detalle.nombre_producto}</td>
+                                            <td>${detalle.cantidad}</td>
+                                            <td>$${this.formatearPrecio(detalle.precio_unitario)}</td>
+                                            <td>$${this.formatearPrecio(detalle.subtotal)}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
-                ` : ''}
+                ` : '<p>No hay detalles de productos disponibles.</p>'}
             </div>
         `;
     }
 
-    async cancelarPedido(idPedido) {
-        if (!confirm('¿Está seguro de que desea cancelar este pedido?')) {
-            return;
-        }
+    // ==================== UTILIDADES ====================
 
-        try {
-            const motivo = prompt('Ingrese el motivo de la cancelación:');
-            if (!motivo) return;
-
-            const response = await fetch(`/api/pedidos/${idPedido}/cancelar`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ motivo })
-            });
-
-            if (!response.ok) throw new Error('Error cancelando pedido');
-
-            this.mostrarExito('Pedido cancelado exitosamente');
-            this.cargarPedidos();
-
-        } catch (error) {
-            console.error('Error cancelando pedido:', error);
-            this.mostrarError('Error al cancelar el pedido');
-        }
-    }
-
-    // Utilidades
     formatearFecha(fechaString) {
         if (!fechaString) return 'N/A';
         const fecha = new Date(fechaString);
-        return fecha.toLocaleDateString('es-ES');
+        return fecha.toLocaleDateString('es-ES') + ' ' + fecha.toLocaleTimeString('es-ES');
     }
 
     formatearPrecio(precio) {
@@ -570,7 +734,7 @@ class PedidosApp {
         const tbody = document.getElementById('tablaPedidos');
         tbody.innerHTML = `
             <tr>
-                <td colspan="7" class="text-center">
+                <td colspan="8" class="text-center">
                     <div class="loading-spinner">
                         <i class="fas fa-spinner fa-spin"></i>
                         <span>Cargando pedidos...</span>
@@ -580,18 +744,42 @@ class PedidosApp {
         `;
     }
 
-    mostrarError(mensaje) {
-        // Implementar sistema de notificaciones
-        alert(`Error: ${mensaje}`);
+    mostrarExito(mensaje) {
+        Swal.fire({
+            icon: 'success',
+            title: 'Éxito',
+            text: mensaje,
+            timer: 3000,
+            showConfirmButton: false
+        });
     }
 
-    mostrarExito(mensaje) {
-        // Implementar sistema de notificaciones
-        alert(`Éxito: ${mensaje}`);
+    mostrarError(mensaje) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: mensaje,
+            confirmButtonText: 'Aceptar'
+        });
+    }
+
+    mostrarInfo(mensaje) {
+        Swal.fire({
+            icon: 'info',
+            title: 'Información',
+            text: mensaje,
+            confirmButtonText: 'Entendido'
+        });
     }
 }
 
 // Inicializar la aplicación de pedidos
 document.addEventListener('DOMContentLoaded', () => {
+    // Verificar si SweetAlert2 está disponible
+    if (typeof Swal === 'undefined') {
+        console.error('SweetAlert2 no está cargado. Cargando desde CDN...');
+        // Podrías cargar SweetAlert2 dinámicamente aquí si es necesario
+    }
+    
     window.pedidosApp = new PedidosApp();
 });

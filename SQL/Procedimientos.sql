@@ -104,6 +104,7 @@ DELIMITER $$
 CREATE PROCEDURE pedidoCrear(
     IN p_id_cliente INT,
     IN p_id_direccion INT,
+    IN p_id_empresa INT,
     IN p_items JSON
 )
 BEGIN
@@ -124,9 +125,25 @@ BEGIN
 
     START TRANSACTION;
 
-    INSERT INTO pedidos(id_cliente, id_direccion_entrega, id_estado_pedido,
-                        total_pedido, peso_total, volumen_total)
-    VALUES(p_id_cliente, p_id_direccion, 1, 0, 0, 0);
+    -- Insertar pedido con id_empresa
+    INSERT INTO pedidos(
+        id_cliente, 
+        id_direccion_entrega, 
+        id_empresa,
+        id_estado_pedido,
+        total_pedido, 
+        peso_total, 
+        volumen_total
+    )
+    VALUES(
+        p_id_cliente, 
+        p_id_direccion, 
+        p_id_empresa,
+        1, 
+        0, 
+        0, 
+        0
+    );
 
     SET v_pedido_id = LAST_INSERT_ID();
     SET v_len = JSON_LENGTH(p_items);
@@ -164,6 +181,7 @@ CREATE PROCEDURE pedidosListar(
     IN p_id_rol INT,
     IN p_estado VARCHAR(50),
     IN p_fecha DATE,
+    IN p_id_empresa INT,
     IN p_offset INT,
     IN p_limite INT
 )
@@ -181,13 +199,16 @@ BEGIN
         SET v_limite = LEAST(p_limite, 50);
     END IF;
 
+    -- Contar total de registros con filtro por empresa
     SELECT COUNT(DISTINCT p.id_pedido)
     INTO v_total
     FROM pedidos p
     LEFT JOIN entregas e ON e.id_pedido = p.id_pedido
     JOIN estados_pedido ep ON p.id_estado_pedido = ep.id_estado_pedido
+    LEFT JOIN empresas emp ON p.id_empresa = emp.id_empresa
     WHERE (p_estado IS NULL OR p_estado = '' OR LOWER(ep.nombre_estado) = LOWER(p_estado))
       AND (p_fecha IS NULL OR DATE(p.fecha_pedido) = p_fecha)
+      AND (p_id_empresa IS NULL OR p.id_empresa = p_id_empresa)
       AND (p_id_rol <> 3 OR e.id_repartidor = p_id_usuario);
 
     IF v_total = 0 THEN
@@ -196,12 +217,15 @@ BEGIN
         SET v_total_paginas = CEILING(v_total / v_limite);
     END IF;
 
+    -- Obtener pedidos con información de empresa
     SELECT 
         p.id_pedido,
         p.fecha_pedido,
         p.total_pedido,
         p.peso_total,
         p.volumen_total,
+        p.id_empresa,
+        emp.nombre AS empresa_nombre,
         c.nombre AS cliente_nombre,
         c.email AS cliente_email,
         c.telefono AS cliente_telefono,
@@ -210,10 +234,12 @@ BEGIN
     FROM pedidos p
     JOIN clientes c ON p.id_cliente = c.id_cliente
     JOIN estados_pedido ep ON p.id_estado_pedido = ep.id_estado_pedido
+    LEFT JOIN empresas emp ON p.id_empresa = emp.id_empresa
     LEFT JOIN detalle_pedido dp ON dp.id_pedido = p.id_pedido
     LEFT JOIN entregas e ON e.id_pedido = p.id_pedido
     WHERE (p_estado IS NULL OR p_estado = '' OR LOWER(ep.nombre_estado) = LOWER(p_estado))
       AND (p_fecha IS NULL OR DATE(p.fecha_pedido) = p_fecha)
+      AND (p_id_empresa IS NULL OR p.id_empresa = p_id_empresa)
       AND (p_id_rol <> 3 OR e.id_repartidor = p_id_usuario)
     GROUP BY 
         p.id_pedido,
@@ -221,6 +247,8 @@ BEGIN
         p.total_pedido,
         p.peso_total,
         p.volumen_total,
+        p.id_empresa,
+        emp.nombre,
         c.nombre,
         c.email,
         c.telefono,
@@ -228,6 +256,7 @@ BEGIN
     ORDER BY p.fecha_pedido DESC
     LIMIT v_limite OFFSET v_offset;
 
+    -- Retornar información de paginación
     SELECT 
         v_total AS total_registros,
         v_total_paginas AS total_paginas,
@@ -244,7 +273,10 @@ BEGIN
         COUNT(*) AS total,
         SUM(CASE WHEN ep.nombre_estado IN ('pendiente', 'confirmado', 'en preparacion') THEN 1 ELSE 0 END) AS pendientes,
         SUM(CASE WHEN ep.nombre_estado IN ('listo para entrega', 'en camino') THEN 1 ELSE 0 END) AS proceso,
-        SUM(CASE WHEN ep.nombre_estado = 'entregado' THEN 1 ELSE 0 END) AS completados
+        SUM(CASE WHEN ep.nombre_estado = 'entregado' THEN 1 ELSE 0 END) AS completados,
+        -- Estadísticas por empresa
+        (SELECT COUNT(*) FROM pedidos WHERE id_empresa IS NOT NULL) AS con_empresa,
+        (SELECT COUNT(*) FROM pedidos WHERE id_empresa IS NULL) AS sin_empresa
     FROM pedidos p
     JOIN estados_pedido ep ON p.id_estado_pedido = ep.id_estado_pedido;
 END $$
@@ -263,6 +295,8 @@ BEGIN
         p.peso_total,
         p.volumen_total,
         p.id_estado_pedido,
+        p.id_empresa,
+        emp.nombre AS empresa_nombre,
         ep.nombre_estado AS estado_nombre,
         c.nombre AS cliente_nombre,
         c.email AS cliente_email,
@@ -274,6 +308,7 @@ BEGIN
     JOIN estados_pedido ep ON p.id_estado_pedido = ep.id_estado_pedido
     JOIN direcciones_cliente dc ON p.id_direccion_entrega = dc.id_direccion
     JOIN zonas z ON dc.id_zona = z.id_zona
+    LEFT JOIN empresas emp ON p.id_empresa = emp.id_empresa
     WHERE p.id_pedido = p_id_pedido;
 END $$
 DELIMITER ;
@@ -1348,5 +1383,100 @@ BEGIN
     INNER JOIN clientes c ON p.id_cliente = c.id_cliente
     WHERE p.id_empresa = p_id_empresa
     ORDER BY p.fecha_pedido DESC;
+END $$
+DELIMITER ;
+
+-- Procedimiento para obtener empresas para dropdown
+DELIMITER $$
+CREATE PROCEDURE empresasParaPedidos()
+BEGIN
+    SELECT 
+        id_empresa,
+        nombre
+    FROM empresas
+    WHERE id_estado_empresa = 1
+    ORDER BY nombre;
+END $$
+DELIMITER ;
+
+-- Procedimiento para actualizar pedido
+DELIMITER $$
+CREATE PROCEDURE pedidoActualizar(
+    IN p_id_pedido INT,
+    IN p_id_estado_pedido INT,
+    IN p_motivo_cancelacion TEXT,
+    IN p_penalizacion_cancelacion DECIMAL(10,2)
+)
+BEGIN
+    DECLARE v_rows_affected INT DEFAULT 0;
+    
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+    
+    START TRANSACTION;
+    
+    UPDATE pedidos 
+    SET 
+        id_estado_pedido = p_id_estado_pedido,
+        motivo_cancelacion = p_motivo_cancelacion,
+        penalizacion_cancelacion = p_penalizacion_cancelacion,
+        fecha_actualizacion = CURRENT_TIMESTAMP
+    WHERE id_pedido = p_id_pedido;
+    
+    SET v_rows_affected = ROW_COUNT();
+    
+    IF v_rows_affected > 0 THEN
+        SELECT 1 as success;
+    ELSE
+        SELECT 0 as success;
+    END IF;
+    
+    COMMIT;
+END $$
+DELIMITER ;
+
+-- Procedimiento para eliminar pedido (solo si está pendiente)
+DELIMITER $$
+CREATE PROCEDURE pedidoEliminar(
+    IN p_id_pedido INT
+)
+BEGIN
+    DECLARE v_estado_actual INT;
+    DECLARE v_rows_affected INT DEFAULT 0;
+    
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+    
+    START TRANSACTION;
+    
+    -- Obtener estado actual del pedido
+    SELECT id_estado_pedido INTO v_estado_actual
+    FROM pedidos 
+    WHERE id_pedido = p_id_pedido;
+    
+    -- Solo permitir eliminar pedidos en estado pendiente (1)
+    IF v_estado_actual = 1 THEN
+        -- Eliminar detalles del pedido primero
+        DELETE FROM detalle_pedido WHERE id_pedido = p_id_pedido;
+        
+        -- Eliminar el pedido
+        DELETE FROM pedidos WHERE id_pedido = p_id_pedido;
+        
+        SET v_rows_affected = ROW_COUNT();
+    END IF;
+    
+    IF v_rows_affected > 0 THEN
+        SELECT 1 as success;
+    ELSE
+        SELECT 0 as success;
+    END IF;
+    
+    COMMIT;
 END $$
 DELIMITER ;
