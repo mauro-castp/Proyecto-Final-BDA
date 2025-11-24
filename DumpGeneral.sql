@@ -1082,12 +1082,14 @@ commit;
 
 DROP TABLE IF EXISTS `pedidos`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
+ /*!40101 SET character_set_client = utf8mb4 */;
+
 CREATE TABLE `pedidos` (
   `id_pedido` int(11) NOT NULL AUTO_INCREMENT,
   `id_cliente` int(11) NOT NULL,
   `id_direccion_entrega` int(11) NOT NULL,
   `id_estado_pedido` int(11) NOT NULL,
+  `id_empresa` int(11) DEFAULT NULL,                 -- 👈 AÑADIDO AQUÍ
   `fecha_pedido` timestamp NULL DEFAULT current_timestamp(),
   `fecha_estimada_entrega` timestamp NULL DEFAULT NULL,
   `motivo_cancelacion` text DEFAULT NULL,
@@ -1096,15 +1098,27 @@ CREATE TABLE `pedidos` (
   `peso_total` decimal(8,2) NOT NULL,
   `volumen_total` decimal(8,4) NOT NULL,
   `fecha_creacion` timestamp NULL DEFAULT current_timestamp(),
-  `fecha_actualizacion` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `fecha_actualizacion` timestamp NULL DEFAULT current_timestamp() 
+        ON UPDATE current_timestamp(),
   PRIMARY KEY (`id_pedido`),
+
   KEY `id_cliente` (`id_cliente`),
   KEY `id_direccion_entrega` (`id_direccion_entrega`),
   KEY `fk_pedidos_estado` (`id_estado_pedido`),
-  CONSTRAINT `fk_pedidos_estado` FOREIGN KEY (`id_estado_pedido`) REFERENCES `estados_pedido` (`id_estado_pedido`),
-  CONSTRAINT `pedidos_ibfk_1` FOREIGN KEY (`id_cliente`) REFERENCES `clientes` (`id_cliente`),
-  CONSTRAINT `pedidos_ibfk_2` FOREIGN KEY (`id_direccion_entrega`) REFERENCES `direcciones_cliente` (`id_direccion`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ;
+  KEY `id_empresa` (`id_empresa`),                   -- 👈 ÍNDICE
+
+  CONSTRAINT `fk_pedidos_estado` FOREIGN KEY (`id_estado_pedido`)
+        REFERENCES `estados_pedido` (`id_estado_pedido`),
+
+  CONSTRAINT `pedidos_ibfk_1` FOREIGN KEY (`id_cliente`)
+        REFERENCES `clientes` (`id_cliente`),
+
+  CONSTRAINT `pedidos_ibfk_2` FOREIGN KEY (`id_direccion_entrega`)
+        REFERENCES `direcciones_cliente` (`id_direccion`),
+
+  CONSTRAINT `pedidos_ibfk_empresa` FOREIGN KEY (`id_empresa`)
+        REFERENCES `empresas` (`id_empresa`)         -- 👈 FOREIGN KEY
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1114,20 +1128,26 @@ CREATE TABLE `pedidos` (
 LOCK TABLES `pedidos` WRITE;
 /*!40000 ALTER TABLE `pedidos` DISABLE KEYS */;
 set autocommit=0;
-INSERT INTO `pedidos` (`id_cliente`, `id_direccion_entrega`, `id_estado_pedido`, `fecha_estimada_entrega`, `total_pedido`, `peso_total`, `volumen_total`) VALUES
-(1, 1, 1, NOW() + INTERVAL 2 DAY, 1200.00, 2.50, 0.0150),
-(2, 2, 2, NOW() + INTERVAL 1 DAY, 800.00, 0.20, 0.0008),
-(3, 3, 3, NOW() + INTERVAL 3 DAY, 1100.00, 2.70, 0.0165),
-(4, 4, 4, NOW() + INTERVAL 1 DAY, 450.00, 0.75, 0.0045),
-(5, 5, 5, NOW() + INTERVAL 2 DAY, 280.00, 1.25, 0.0051),
-(6, 6, 6, NOW() - INTERVAL 1 DAY, 150.00, 0.25, 0.0015),
-(7, 7, 6, NOW() - INTERVAL 2 DAY, 250.00, 8.50, 0.0450),
-(8, 8, 1, NOW() + INTERVAL 4 DAY, 90.00, 0.48, 0.0021),
-(9, 9, 2, NOW() + INTERVAL 2 DAY, 60.00, 0.30, 0.0012),
-(10, 10, 3, NOW() + INTERVAL 3 DAY, 40.00, 0.18, 0.0009);
-/*!40000 ALTER TABLE `pedidos` ENABLE KEYS */;
+
+INSERT INTO `pedidos`
+(`id_cliente`, `id_direccion_entrega`, `id_estado_pedido`, `id_empresa`,
+ `fecha_estimada_entrega`, `total_pedido`, `peso_total`, `volumen_total`)
+VALUES
+(1, 1, 1, 1, NOW() + INTERVAL 2 DAY, 1200.00, 2.50, 0.0150),
+(2, 2, 2, 1, NOW() + INTERVAL 1 DAY, 800.00, 0.20, 0.0008),
+(3, 3, 3, 2, NOW() + INTERVAL 3 DAY, 1100.00, 2.70, 0.0165),
+(4, 4, 4, 2, NOW() + INTERVAL 1 DAY, 450.00, 0.75, 0.0045),
+(5, 5, 5, 3, NOW() + INTERVAL 2 DAY, 280.00, 1.25, 0.0051),
+(6, 6, 6, 3, NOW() - INTERVAL 1 DAY, 150.00, 0.25, 0.0015),
+(7, 7, 6, 4, NOW() - INTERVAL 2 DAY, 250.00, 8.50, 0.0450),
+(8, 8, 1, 4, NOW() + INTERVAL 4 DAY, 90.00, 0.48, 0.0021),
+(9, 9, 2, 5, NOW() + INTERVAL 2 DAY, 60.00, 0.30, 0.0012),
+(10, 10, 3, 5, NOW() + INTERVAL 3 DAY, 40.00, 0.18, 0.0009);
+
+ /*!40000 ALTER TABLE `pedidos` ENABLE KEYS */;
 UNLOCK TABLES;
 commit;
+
 
 --
 -- Table structure for table `penalizaciones`
@@ -1590,6 +1610,76 @@ INSERT INTO `zonas` (`nombre_zona`, `descripcion`, `radio_km`, `id_estado_zona`,
 ('Zona Hospital', 'Área médica y hospitalaria', 3.50, 1, 9),
 ('Zona Parque Industrial', 'Área industrial y logística', 8.00, 1, 10);
 /*!40000 ALTER TABLE `zonas` ENABLE KEYS */;
+UNLOCK TABLES;
+commit;
+
+--
+-- Table structure for table `estados_empresa`
+--
+
+DROP TABLE IF EXISTS `estados_empresa`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `estados_empresa` (
+  `id_estado_empresa` int(11) NOT NULL AUTO_INCREMENT,
+  `nombre_estado` varchar(50) NOT NULL,
+  `descripcion` text DEFAULT NULL,
+  PRIMARY KEY (`id_estado_empresa`),
+  UNIQUE KEY `nombre_estado` (`nombre_estado`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `estados_empresa`
+--
+
+LOCK TABLES `estados_empresa` WRITE;
+/*!40000 ALTER TABLE `estados_empresa` DISABLE KEYS */;
+set autocommit=0;
+INSERT INTO `estados_empresa` VALUES
+(1,'activa','Empresa activa'),
+(2,'inactiva','Empresa inactiva'),
+(3,'suspendida','Empresa suspendida');
+/*!40000 ALTER TABLE `estados_empresa` ENABLE KEYS */;
+UNLOCK TABLES;
+commit;
+
+--
+-- Table structure for table `empresas`
+--
+
+DROP TABLE IF EXISTS `empresas`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `empresas` (
+  `id_empresa` int(11) NOT NULL AUTO_INCREMENT,
+  `nombre` varchar(200) NOT NULL,
+  `telefono` varchar(20) DEFAULT NULL,
+  `email` varchar(150) DEFAULT NULL,
+  `direccion` text DEFAULT NULL,
+  `id_estado_empresa` int(11) NOT NULL,
+  `fecha_creacion` timestamp NULL DEFAULT current_timestamp(),
+  `fecha_actualizacion` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`id_empresa`),
+  KEY `id_estado_empresa` (`id_estado_empresa`),
+  CONSTRAINT `empresas_ibfk_1` FOREIGN KEY (`id_estado_empresa`) REFERENCES `estados_empresa` (`id_estado_empresa`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `empresas`
+--
+
+LOCK TABLES `empresas` WRITE;
+/*!40000 ALTER TABLE `empresas` DISABLE KEYS */;
+set autocommit=0;
+INSERT INTO `empresas` (`nombre`, `telefono`, `email`, `direccion`, `id_estado_empresa`) VALUES
+('Tech Solutions SA', '+1234567801', 'ventas@techsolutions.com', 'Av. Tecnológica 123, Parque Industrial', 1),
+('ElectroHome Corp', '+1234567802', 'pedidos@electrohome.com', 'Calle Comercial 456, Centro', 1),
+('Gadget Store', '+1234567803', 'info@gadgetstore.com', 'Plaza Shopping 789, Local 15', 1),
+('Digital World', '+1234567804', 'contacto@digitalworld.com', 'Boulevard Digital 321, Piso 8', 1),
+('Smart Devices Inc', '+1234567805', 'ventas@smartdevices.com', 'Zona Franca 654, Bodega 12', 1);
+/*!40000 ALTER TABLE `empresas` ENABLE KEYS */;
 UNLOCK TABLES;
 commit;
 

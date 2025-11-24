@@ -1184,3 +1184,169 @@ BEGIN
     ORDER BY nombre_zona;
 END $$
 DELIMITER ;
+
+-- Procedimiento para obtener todas las empresas
+DELIMITER $$
+CREATE PROCEDURE obtenerEmpresas()
+BEGIN
+    SELECT 
+        e.*,
+        es.nombre_estado
+    FROM empresas e
+    LEFT JOIN estados_empresa es ON e.id_estado_empresa = es.id_estado_empresa
+    ORDER BY e.nombre;
+END $$
+DELIMITER ;
+
+-- Procedimiento para obtener empresa por ID
+DELIMITER $$
+CREATE PROCEDURE obtenerEmpresaPorId(IN p_id_empresa INT)
+BEGIN
+    SELECT 
+        e.*,
+        es.nombre_estado
+    FROM empresas e
+    LEFT JOIN estados_empresa es ON e.id_estado_empresa = es.id_estado_empresa
+    WHERE e.id_empresa = p_id_empresa;
+END $$
+DELIMITER ;
+
+-- Procedimiento para eliminar empresa (CORREGIDO)
+DELIMITER $$
+CREATE PROCEDURE eliminarEmpresa(IN p_id_empresa INT)
+BEGIN
+    DECLARE v_rows_affected INT DEFAULT 0;
+    
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+    
+    START TRANSACTION;
+    
+    -- Verificar si la empresa existe
+    SELECT COUNT(*) INTO v_rows_affected 
+    FROM empresas 
+    WHERE id_empresa = p_id_empresa;
+    
+    IF v_rows_affected > 0 THEN
+        -- Eliminar la empresa
+        DELETE FROM empresas WHERE id_empresa = p_id_empresa;
+        SELECT 1 as success;
+    ELSE
+        SELECT 0 as success;
+    END IF;
+    
+    COMMIT;
+END $$
+DELIMITER ;
+
+-- Procedimiento para crear empresa (CORREGIDO)
+DELIMITER $$
+CREATE PROCEDURE crearEmpresa(
+    IN p_nombre VARCHAR(200),
+    IN p_telefono VARCHAR(20),
+    IN p_email VARCHAR(150),
+    IN p_direccion TEXT,
+    IN p_id_estado_empresa INT
+)
+BEGIN
+    DECLARE v_id_empresa INT;
+    
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+    
+    START TRANSACTION;
+    
+    INSERT INTO empresas (
+        nombre, telefono, email, direccion, id_estado_empresa
+    ) VALUES (
+        p_nombre, p_telefono, p_email, p_direccion, p_id_estado_empresa
+    );
+    
+    SET v_id_empresa = LAST_INSERT_ID();
+    
+    SELECT v_id_empresa as id_empresa, 1 as success;
+    
+    COMMIT;
+END $$
+DELIMITER ;
+
+-- Procedimiento para actualizar empresa (CORREGIDO)
+DELIMITER $$
+CREATE PROCEDURE actualizarEmpresa(
+    IN p_id_empresa INT,
+    IN p_nombre VARCHAR(200),
+    IN p_telefono VARCHAR(20),
+    IN p_email VARCHAR(150),
+    IN p_direccion TEXT,
+    IN p_id_estado_empresa INT
+)
+BEGIN
+    DECLARE v_rows_affected INT DEFAULT 0;
+    
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+    
+    START TRANSACTION;
+    
+    UPDATE empresas 
+    SET 
+        nombre = p_nombre,
+        telefono = p_telefono,
+        email = p_email,
+        direccion = p_direccion,
+        id_estado_empresa = p_id_estado_empresa,
+        fecha_actualizacion = CURRENT_TIMESTAMP
+    WHERE id_empresa = p_id_empresa;
+    
+    SET v_rows_affected = ROW_COUNT();
+    
+    IF v_rows_affected > 0 THEN
+        SELECT 1 as success;
+    ELSE
+        SELECT 0 as success;
+    END IF;
+    
+    COMMIT;
+END $$
+DELIMITER ;
+
+-- Procedimiento para obtener estadísticas de empresas
+DELIMITER $$
+CREATE PROCEDURE obtenerEstadisticasEmpresas()
+BEGIN
+    SELECT 
+        COUNT(*) as total_empresas,
+        SUM(CASE WHEN id_estado_empresa = 1 THEN 1 ELSE 0 END) as empresas_activas,
+        SUM(CASE WHEN id_estado_empresa = 2 THEN 1 ELSE 0 END) as empresas_inactivas,
+        SUM(CASE WHEN id_estado_empresa = 3 THEN 1 ELSE 0 END) as empresas_suspendidas
+    FROM empresas;
+END $$
+DELIMITER ;
+
+-- Procedimiento para obtener pedidos por empresa
+DELIMITER $$
+CREATE PROCEDURE obtenerPedidosPorEmpresa(IN p_id_empresa INT)
+BEGIN
+    SELECT 
+        p.id_pedido,
+        p.fecha_pedido,
+        p.total_pedido,
+        ep.nombre_estado,
+        p.fecha_estimada_entrega,
+        c.nombre as nombre_cliente
+    FROM pedidos p
+    INNER JOIN estados_pedido ep ON p.id_estado_pedido = ep.id_estado_pedido
+    INNER JOIN clientes c ON p.id_cliente = c.id_cliente
+    WHERE p.id_empresa = p_id_empresa
+    ORDER BY p.fecha_pedido DESC;
+END $$
+DELIMITER ;

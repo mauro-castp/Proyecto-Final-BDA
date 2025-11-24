@@ -1,87 +1,118 @@
-class CompaniesApp {
-    constructor() {
-        this.empresas = [];
-        this.estadosEmpresa = [];
-        this.paginaActual = 1;
-        this.totalPaginas = 1;
-        this.totalRegistros = 0;
-        this.registrosPorPagina = 10;
-        this.filtros = {
-            estado: '',
-            busqueda: ''
-        };
-        this.init();
-    }
+// static/js/empresas.js
+const companiesApp = {
+    empresas: [],
+    empresaEditando: null,
+    filtros: {
+        estado: '',
+        busqueda: ''
+    },
+    paginacion: {
+        paginaActual: 1,
+        elementosPorPagina: 10,
+        totalPaginas: 0,
+        totalElementos: 0
+    },
 
-    init() {
-        this.bindEvents();
+    init: function() {
         this.cargarEmpresas();
-    }
+        this.configurarEventos();
+    },
 
-    bindEvents() {
-        // Filtros
+    configurarEventos: function() {
+        // Eventos de filtros
         document.getElementById('filtroEstado').addEventListener('change', (e) => {
             this.filtros.estado = e.target.value;
+            this.aplicarFiltros();
         });
 
         document.getElementById('filtroBusqueda').addEventListener('input', (e) => {
             this.filtros.busqueda = e.target.value;
+            this.aplicarFiltros();
         });
 
-        // Paginación
-        document.getElementById('btnAnterior').addEventListener('click', () => {
-            if (this.paginaActual > 1) {
-                this.paginaActual--;
-                this.cargarEmpresas();
-            }
-        });
+        // Eventos de paginación
+        document.getElementById('btnAnterior').addEventListener('click', () => this.paginaAnterior());
+        document.getElementById('btnSiguiente').addEventListener('click', () => this.paginaSiguiente());
+    },
 
-        document.getElementById('btnSiguiente').addEventListener('click', () => {
-            if (this.paginaActual < this.totalPaginas) {
-                this.paginaActual++;
-                this.cargarEmpresas();
-            }
-        });
-    }
-
-    async cargarEmpresas() {
+    cargarEmpresas: async function() {
         try {
-            this.mostrarCargando();
-
-            const params = new URLSearchParams({
-                pagina: this.paginaActual,
-                limite: this.registrosPorPagina,
-                ...this.filtros
-            });
-
-            const response = await fetch(`/api/empresas?${params}`);
-            if (!response.ok) throw new Error('Error cargando empresas');
-
-            const data = await response.json();
-            this.empresas = data.empresas || [];
-            this.totalPaginas = data.paginacion?.total_paginas || 1;
-            this.totalRegistros = data.paginacion?.total_registros ?? this.empresas.length;
-            this.registrosPorPagina = data.paginacion?.limite || this.registrosPorPagina;
-
-            this.actualizarTabla();
-            this.actualizarEstadisticas(data.estadisticas || {});
-            this.actualizarPaginacion(data.paginacion);
-
+            this.mostrarLoading(true);
+            
+            const response = await fetch('/api/empresas');
+            if (!response.ok) throw new Error('Error al cargar empresas');
+            
+            this.empresas = await response.json();
+            this.cargarEstadisticas();
+            this.mostrarEmpresas();
+            
         } catch (error) {
-            console.error('Error cargando empresas:', error);
-            this.mostrarError('Error cargando la lista de empresas');
+            console.error('Error:', error);
+            this.mostrarError('No se pudieron cargar las empresas');
+        } finally {
+            this.mostrarLoading(false);
         }
-    }
+    },
 
-    actualizarTabla() {
+    cargarEstadisticas: async function() {
+        try {
+            const response = await fetch('/api/empresas/estadisticas');
+            if (response.ok) {
+                const stats = await response.json();
+                this.actualizarEstadisticas(stats);
+            }
+        } catch (error) {
+            console.error('Error cargando estadísticas:', error);
+        }
+    },
+
+    actualizarEstadisticas: function(stats) {
+        document.getElementById('totalEmpresas').textContent = stats.total_empresas || 0;
+        document.getElementById('empresasActivas').textContent = stats.empresas_activas || 0;
+        document.getElementById('empresasInactivas').textContent = stats.empresas_inactivas || 0;
+        document.getElementById('empresasSuspendidas').textContent = stats.empresas_suspendidas || 0;
+    },
+
+    aplicarFiltros: function() {
+        this.paginacion.paginaActual = 1;
+        this.mostrarEmpresas();
+    },
+
+    mostrarEmpresas: function() {
+        let empresasFiltradas = this.filtrarEmpresas();
+        this.paginacion.totalElementos = empresasFiltradas.length;
+        this.paginacion.totalPaginas = Math.ceil(empresasFiltradas.length / this.paginacion.elementosPorPagina);
+        
+        const inicio = (this.paginacion.paginaActual - 1) * this.paginacion.elementosPorPagina;
+        const fin = inicio + this.paginacion.elementosPorPagina;
+        const empresasPagina = empresasFiltradas.slice(inicio, fin);
+        
+        this.renderizarEmpresas(empresasPagina);
+        this.actualizarPaginacion();
+        this.actualizarInfoPaginacion(inicio, fin);
+    },
+
+    filtrarEmpresas: function() {
+        return this.empresas.filter(empresa => {
+            const coincideEstado = !this.filtros.estado || empresa.nombre_estado.toLowerCase() === this.filtros.estado.toLowerCase();
+            const coincideBusqueda = !this.filtros.busqueda || 
+                empresa.nombre.toLowerCase().includes(this.filtros.busqueda.toLowerCase()) ||
+                (empresa.email && empresa.email.toLowerCase().includes(this.filtros.busqueda.toLowerCase())) ||
+                (empresa.telefono && empresa.telefono.includes(this.filtros.busqueda));
+            
+            return coincideEstado && coincideBusqueda;
+        });
+    },
+
+    renderizarEmpresas: function(empresas) {
         const tbody = document.getElementById('tablaEmpresas');
-
-        if (this.empresas.length === 0) {
+        
+        if (empresas.length === 0) {
             tbody.innerHTML = `
                 <tr>
                     <td colspan="7" class="text-center">
                         <div class="loading-spinner">
-                            <i class="fas fa-building"></i>
+                            <i class="fas fa-search"></i>
                             <span>No se encontraron empresas</span>
                         </div>
                     </td>
@@ -90,26 +121,24 @@ class CompaniesApp {
             return;
         }
 
-        tbody.innerHTML = this.empresas.map(empresa => `
+        tbody.innerHTML = empresas.map(empresa => `
             <tr>
                 <td>
-                    <div class="empresa-info">
-                        <strong>${empresa.nombre || 'N/A'}</strong>
-                    </div>
+                    <strong>${this.escapeHtml(empresa.nombre)}</strong>
                 </td>
-                <td>${empresa.telefono || 'No especificado'}</td>
-                <td>${empresa.email || 'No especificado'}</td>
+                <td>${empresa.telefono || '-'}</td>
+                <td>${empresa.email || '-'}</td>
                 <td>
-                    <div class="direccion-truncada" title="${empresa.direccion || ''}">
-                        ${empresa.direccion ? this.truncarTexto(empresa.direccion, 50) : 'No especificada'}
-                    </div>
-                </td>
-                <td>
-                    <span class="estado-badge estado-${this.obtenerEstadoClase(empresa.id_estado_empresa)}">
-                        ${this.obtenerEstadoTexto(empresa.id_estado_empresa)}
+                    <span class="direccion-truncada" title="${this.escapeHtml(empresa.direccion || '')}">
+                        ${this.escapeHtml(empresa.direccion) || '-'}
                     </span>
                 </td>
-                <td>${this.formatearFecha(empresa.fecha_creacion)}</td>
+                <td>
+                    <span class="estado-badge estado-${empresa.nombre_estado.toLowerCase()}">
+                        ${empresa.nombre_estado}
+                    </span>
+                </td>
+                <td>${new Date(empresa.fecha_creacion).toLocaleDateString()}</td>
                 <td class="acciones-cell">
                     <button class="btn-action btn-view" onclick="companiesApp.verDetalles(${empresa.id_empresa})" title="Ver detalles">
                         <i class="fas fa-eye"></i>
@@ -123,276 +152,363 @@ class CompaniesApp {
                 </td>
             </tr>
         `).join('');
-    }
+    },
 
-    obtenerEstadoClase(idEstado) {
-        const estados = {
-            1: 'activa',
-            2: 'inactiva',
-            3: 'suspendida'
-        };
-        return estados[idEstado] || 'inactiva';
-    }
-
-    obtenerEstadoTexto(idEstado) {
-        const estados = {
-            1: 'Activa',
-            2: 'Inactiva',
-            3: 'Suspendida'
-        };
-        return estados[idEstado] || 'Inactiva';
-    }
-
-    truncarTexto(texto, longitud) {
-        if (texto.length <= longitud) return texto;
-        return texto.substring(0, longitud) + '...';
-    }
-
-    actualizarEstadisticas(estadisticas = {}) {
-        document.getElementById('totalEmpresas').textContent = estadisticas.total || 0;
-        document.getElementById('empresasActivas').textContent = estadisticas.activas || 0;
-        document.getElementById('empresasInactivas').textContent = estadisticas.inactivas || 0;
-        document.getElementById('empresasSuspendidas').textContent = estadisticas.suspendidas || 0;
-    }
-
-    actualizarPaginacion(paginacion = {}) {
-        if (paginacion) {
-            this.totalPaginas = paginacion.total_paginas || this.totalPaginas;
-            this.totalRegistros = paginacion.total_registros ?? this.totalRegistros;
-            this.registrosPorPagina = paginacion.limite || this.registrosPorPagina;
-        }
-
+    actualizarPaginacion: function() {
         const btnAnterior = document.getElementById('btnAnterior');
         const btnSiguiente = document.getElementById('btnSiguiente');
         const paginationNumbers = document.getElementById('paginationNumbers');
 
-        const totalPaginas = Math.max(1, this.totalPaginas || 1);
-        const noRegistros = this.totalRegistros === 0;
+        btnAnterior.disabled = this.paginacion.paginaActual === 1;
+        btnSiguiente.disabled = this.paginacion.paginaActual === this.paginacion.totalPaginas;
 
-        btnAnterior.disabled = this.paginaActual <= 1 || noRegistros;
-        btnSiguiente.disabled = this.paginaActual >= totalPaginas || noRegistros;
-
-        const desde = noRegistros ? 0 : ((this.paginaActual - 1) * this.registrosPorPagina) + 1;
-        const hasta = noRegistros ? 0 : Math.min(this.paginaActual * this.registrosPorPagina, this.totalRegistros);
-        document.getElementById('mostrandoDesde').textContent = desde;
-        document.getElementById('mostrandoHasta').textContent = hasta;
-        document.getElementById('totalRegistros').textContent = this.totalRegistros;
-
+        // Generar números de página
         let paginasHTML = '';
-        for (let i = 1; i <= totalPaginas; i++) {
+        const paginasVisibles = 5;
+        let inicioPagina = Math.max(1, this.paginacion.paginaActual - Math.floor(paginasVisibles / 2));
+        let finPagina = Math.min(this.paginacion.totalPaginas, inicioPagina + paginasVisibles - 1);
+
+        for (let i = inicioPagina; i <= finPagina; i++) {
             paginasHTML += `
-                <button class="page-number ${i === this.paginaActual ? 'active' : ''}" 
+                <button class="page-number ${i === this.paginacion.paginaActual ? 'active' : ''}" 
                         onclick="companiesApp.irAPagina(${i})">
                     ${i}
                 </button>
             `;
         }
-        paginationNumbers.innerHTML = paginasHTML;
-    }
 
-    irAPagina(pagina) {
-        if (pagina === this.paginaActual || pagina < 1 || pagina > this.totalPaginas) {
+        paginationNumbers.innerHTML = paginasHTML;
+    },
+
+    actualizarInfoPaginacion: function(inicio, fin) {
+        document.getElementById('mostrandoDesde').textContent = inicio + 1;
+        document.getElementById('mostrandoHasta').textContent = Math.min(fin, this.paginacion.totalElementos);
+        document.getElementById('totalRegistros').textContent = this.paginacion.totalElementos;
+    },
+
+    paginaAnterior: function() {
+        if (this.paginacion.paginaActual > 1) {
+            this.paginacion.paginaActual--;
+            this.mostrarEmpresas();
+        }
+    },
+
+    paginaSiguiente: function() {
+        if (this.paginacion.paginaActual < this.paginacion.totalPaginas) {
+            this.paginacion.paginaActual++;
+            this.mostrarEmpresas();
+        }
+    },
+
+    irAPagina: function(pagina) {
+        this.paginacion.paginaActual = pagina;
+        this.mostrarEmpresas();
+    },
+
+    // ==================== CRUD OPERATIONS ====================
+
+    mostrarModalNuevaEmpresa: function() {
+        this.empresaEditando = null;
+        document.getElementById('formNuevaEmpresa').reset();
+        document.getElementById('modalEmpresaTitulo').innerHTML = '<i class="fas fa-plus-circle"></i> Nueva Empresa';
+        document.getElementById('modalNuevaEmpresa').style.display = 'block';
+    },
+
+    crearEmpresa: async function() {
+        const form = document.getElementById('formNuevaEmpresa');
+        if (!form.checkValidity()) {
+            form.reportValidity();
             return;
         }
-        this.paginaActual = pagina;
-        this.cargarEmpresas();
-    }
 
-    aplicarFiltros() {
-        this.paginaActual = 1;
-        this.cargarEmpresas();
-    }
-
-    // Modal Nueva Empresa
-    mostrarModalNuevaEmpresa() {
-        this.limpiarFormulario();
-        document.getElementById('modalNuevaEmpresa').style.display = 'block';
-    }
-
-    cerrarModal() {
-        document.getElementById('modalNuevaEmpresa').style.display = 'none';
-    }
-
-    async crearEmpresa() {
-        try {
-            const formData = this.obtenerDatosFormulario();
-
-            if (!this.validarFormulario(formData)) {
-                return;
-            }
-
-            const response = await fetch('/api/empresas', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(formData)
-            });
-
-            if (!response.ok) throw new Error('Error creando empresa');
-
-            const result = await response.json();
-            this.mostrarExito('Empresa creada exitosamente');
-            this.cerrarModal();
-            this.cargarEmpresas();
-
-        } catch (error) {
-            console.error('Error creando empresa:', error);
-            this.mostrarError('Error al crear la empresa');
-        }
-    }
-
-    obtenerDatosFormulario() {
-        return {
+        const empresaData = {
             nombre: document.getElementById('nombreEmpresa').value,
             telefono: document.getElementById('telefonoEmpresa').value,
             email: document.getElementById('emailEmpresa').value,
             direccion: document.getElementById('direccionEmpresa').value,
             id_estado_empresa: parseInt(document.getElementById('estadoEmpresa').value)
         };
-    }
-
-    validarFormulario(formData) {
-        if (!formData.nombre || formData.nombre.trim() === '') {
-            this.mostrarError('Por favor ingrese el nombre de la empresa');
-            return false;
-        }
-
-        if (!formData.id_estado_empresa) {
-            this.mostrarError('Por favor seleccione un estado para la empresa');
-            return false;
-        }
-
-        return true;
-    }
-
-    limpiarFormulario() {
-        document.getElementById('formNuevaEmpresa').reset();
-    }
-
-    // Otras funcionalidades
-    async verDetalles(idEmpresa) {
-        try {
-            const response = await fetch(`/api/empresas/${idEmpresa}`);
-            if (!response.ok) throw new Error('Error cargando detalles');
-
-            const empresa = await response.json();
-            this.mostrarModalDetalles(empresa);
-
-        } catch (error) {
-            console.error('Error cargando detalles:', error);
-            this.mostrarError('Error cargando detalles de la empresa');
-        }
-    }
-
-    mostrarModalDetalles(empresa) {
-        const content = document.getElementById('detallesEmpresaContent');
-        content.innerHTML = this.generarHTMLDetalles(empresa);
-        document.getElementById('modalDetallesEmpresa').style.display = 'block';
-    }
-
-    cerrarModalDetalles() {
-        document.getElementById('modalDetallesEmpresa').style.display = 'none';
-    }
-
-    generarHTMLDetalles(empresa) {
-        return `
-            <div class="detalles-empresa">
-                <div class="detalles-header">
-                    <h4>Empresa #${empresa.id_empresa}</h4>
-                    <span class="estado-badge estado-${this.obtenerEstadoClase(empresa.id_estado_empresa)}">
-                        ${this.obtenerEstadoTexto(empresa.id_estado_empresa)}
-                    </span>
-                </div>
-                
-                <div class="detalles-info">
-                    <div class="info-group">
-                        <h5>Información de la Empresa</h5>
-                        <p><strong>Nombre:</strong> ${empresa.nombre || 'N/A'}</p>
-                        <p><strong>Email:</strong> ${empresa.email || 'No especificado'}</p>
-                        <p><strong>Teléfono:</strong> ${empresa.telefono || 'No especificado'}</p>
-                        <p><strong>Fecha de Registro:</strong> ${this.formatearFecha(empresa.fecha_creacion)}</p>
-                        <p><strong>Última Actualización:</strong> ${this.formatearFecha(empresa.fecha_actualizacion)}</p>
-                    </div>
-                    
-                    ${empresa.direccion ? `
-                        <div class="info-group">
-                            <h5>Dirección</h5>
-                            <div class="direccion-completa">
-                                ${empresa.direccion}
-                            </div>
-                        </div>
-                    ` : ''}
-                </div>
-            </div>
-        `;
-    }
-
-    async editarEmpresa(idEmpresa) {
-        // Implementar edición de empresa
-        this.mostrarExito(`Editar empresa ${idEmpresa} - Funcionalidad en desarrollo`);
-    }
-
-    async eliminarEmpresa(idEmpresa) {
-        if (!confirm('¿Está seguro de que desea eliminar esta empresa? Esta acción no se puede deshacer.')) {
-            return;
-        }
 
         try {
-            const response = await fetch(`/api/empresas/${idEmpresa}`, {
-                method: 'DELETE'
+            const response = await fetch('/api/empresas', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(empresaData)
             });
 
-            if (!response.ok) throw new Error('Error eliminando empresa');
+            const result = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(result.error || 'Error al crear empresa');
+            }
 
-            this.mostrarExito('Empresa eliminada exitosamente');
-            this.cargarEmpresas();
+            this.mostrarExito(result.message);
+            this.cerrarModal();
+            // Recargar los datos después de crear
+            await this.cargarEmpresas();
 
         } catch (error) {
-            console.error('Error eliminando empresa:', error);
-            this.mostrarError('Error al eliminar la empresa');
+            console.error('Error:', error);
+            this.mostrarError(error.message);
         }
-    }
+    },
 
-    // Utilidades
-    formatearFecha(fechaString) {
-        if (!fechaString) return 'N/A';
-        const fecha = new Date(fechaString);
-        return fecha.toLocaleDateString('es-ES', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
+    editarEmpresa: async function(idEmpresa) {
+        try {
+            const response = await fetch(`/api/empresas/${idEmpresa}`);
+            if (!response.ok) throw new Error('Error al cargar empresa');
+
+            const empresa = await response.json();
+            this.empresaEditando = empresa;
+
+            // Llenar el formulario
+            document.getElementById('nombreEmpresa').value = empresa.nombre;
+            document.getElementById('telefonoEmpresa').value = empresa.telefono || '';
+            document.getElementById('emailEmpresa').value = empresa.email || '';
+            document.getElementById('direccionEmpresa').value = empresa.direccion || '';
+            document.getElementById('estadoEmpresa').value = empresa.id_estado_empresa;
+
+            // Cambiar título del modal
+            document.getElementById('modalEmpresaTitulo').innerHTML = '<i class="fas fa-edit"></i> Editar Empresa';
+
+            document.getElementById('modalNuevaEmpresa').style.display = 'block';
+
+        } catch (error) {
+            console.error('Error:', error);
+            this.mostrarError('No se pudo cargar la empresa para editar');
+        }
+    },
+
+    actualizarEmpresa: async function() {
+        if (!this.empresaEditando) return;
+
+        const empresaData = {
+            nombre: document.getElementById('nombreEmpresa').value,
+            telefono: document.getElementById('telefonoEmpresa').value,
+            email: document.getElementById('emailEmpresa').value,
+            direccion: document.getElementById('direccionEmpresa').value,
+            id_estado_empresa: parseInt(document.getElementById('estadoEmpresa').value)
+        };
+
+        try {
+            const response = await fetch(`/api/empresas/${this.empresaEditando.id_empresa}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(empresaData)
+            });
+
+            const result = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(result.error || 'Error al actualizar empresa');
+            }
+
+            this.mostrarExito(result.message);
+            this.cerrarModal();
+            // Recargar los datos después de actualizar
+            await this.cargarEmpresas();
+
+        } catch (error) {
+            console.error('Error:', error);
+            this.mostrarError(error.message);
+        }
+    },
+
+    eliminarEmpresa: async function(idEmpresa) {
+        const confirmacion = await Swal.fire({
+            title: '¿Estás seguro?',
+            text: "Esta acción no se puede deshacer",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Sí, eliminar',
+            cancelButtonText: 'Cancelar'
         });
-    }
 
-    mostrarCargando() {
-        const tbody = document.getElementById('tablaEmpresas');
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="7" class="text-center">
-                    <div class="loading-spinner">
-                        <i class="fas fa-spinner fa-spin"></i>
-                        <span>Cargando empresas...</span>
+        if (confirmacion.isConfirmed) {
+            try {
+                const response = await fetch(`/api/empresas/${idEmpresa}`, {
+                    method: 'DELETE'
+                });
+
+                const result = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(result.error || 'Error al eliminar empresa');
+                }
+
+                this.mostrarExito(result.message);
+                // Recargar los datos después de eliminar
+                await this.cargarEmpresas();
+
+            } catch (error) {
+                console.error('Error:', error);
+                this.mostrarError(error.message);
+            }
+        }
+    },
+
+    verDetalles: async function(idEmpresa) {
+        try {
+            const response = await fetch(`/api/empresas/${idEmpresa}`);
+            if (!response.ok) throw new Error('Error al cargar detalles');
+
+            const empresa = await response.json();
+            this.mostrarDetallesEmpresa(empresa);
+
+        } catch (error) {
+            console.error('Error:', error);
+            this.mostrarError('No se pudieron cargar los detalles de la empresa');
+        }
+    },
+
+    mostrarDetallesEmpresa: async function(empresa) {
+        try {
+            // Cargar pedidos de la empresa
+            const responsePedidos = await fetch(`/api/empresas/${empresa.id_empresa}/pedidos`);
+            const pedidos = responsePedidos.ok ? await responsePedidos.json() : [];
+
+            let pedidosHTML = '';
+            if (pedidos.length > 0) {
+                pedidosHTML = `
+                    <div class="info-group">
+                        <h5>Pedidos Recientes</h5>
+                        ${pedidos.slice(0, 5).map(pedido => `
+                            <div class="border-bottom pb-2 mb-2">
+                                <strong>Pedido #${pedido.id_pedido}</strong><br>
+                                <small>Cliente: ${this.escapeHtml(pedido.nombre_cliente)}</small><br>
+                                <small>Fecha: ${new Date(pedido.fecha_pedido).toLocaleDateString()}</small><br>
+                                <small>Total: $${pedido.total_pedido}</small><br>
+                                <small>Estado: ${pedido.nombre_estado}</small>
+                            </div>
+                        `).join('')}
+                        ${pedidos.length > 5 ? `<small class="text-muted">... y ${pedidos.length - 5} pedidos más</small>` : ''}
                     </div>
-                </td>
-            </tr>
-        `;
+                `;
+            }
+
+            const contenido = `
+                <div class="detalles-empresa">
+                    <div class="info-group">
+                        <h5>Información General</h5>
+                        <p><strong>Nombre:</strong> ${this.escapeHtml(empresa.nombre)}</p>
+                        <p><strong>Email:</strong> ${empresa.email || 'No especificado'}</p>
+                        <p><strong>Teléfono:</strong> ${empresa.telefono || 'No especificado'}</p>
+                        <p><strong>Estado:</strong> 
+                            <span class="estado-badge estado-${empresa.nombre_estado.toLowerCase()}">
+                                ${empresa.nombre_estado}
+                            </span>
+                        </p>
+                    </div>
+
+                    <div class="info-group">
+                        <h5>Dirección</h5>
+                        <div class="direccion-completa">
+                            ${empresa.direccion || 'No especificada'}
+                        </div>
+                    </div>
+
+                    <div class="info-group">
+                        <h5>Información del Sistema</h5>
+                        <p><strong>Fecha de Registro:</strong> ${new Date(empresa.fecha_creacion).toLocaleDateString()}</p>
+                        <p><strong>Última Actualización:</strong> ${new Date(empresa.fecha_actualizacion).toLocaleDateString()}</p>
+                    </div>
+
+                    ${pedidosHTML}
+                </div>
+            `;
+
+            document.getElementById('detallesEmpresaContent').innerHTML = contenido;
+            document.getElementById('modalDetallesEmpresa').style.display = 'block';
+        } catch (error) {
+            console.error('Error cargando pedidos:', error);
+        }
+    },
+
+    // ==================== UTILITY FUNCTIONS ====================
+
+    cerrarModal: function() {
+        document.getElementById('modalNuevaEmpresa').style.display = 'none';
+        this.empresaEditando = null;
+        // Restaurar título del modal
+        document.getElementById('modalEmpresaTitulo').innerHTML = '<i class="fas fa-plus-circle"></i> Nueva Empresa';
+    },
+
+    cerrarModalDetalles: function() {
+        document.getElementById('modalDetallesEmpresa').style.display = 'none';
+    },
+
+    mostrarLoading: function(mostrar) {
+        const tbody = document.getElementById('tablaEmpresas');
+        if (mostrar) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="7" class="text-center">
+                        <div class="loading-spinner">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <span>Cargando empresas...</span>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }
+    },
+
+    mostrarExito: function(mensaje) {
+        Swal.fire({
+            icon: 'success',
+            title: 'Éxito',
+            text: mensaje,
+            timer: 3000,
+            showConfirmButton: false
+        });
+    },
+
+    mostrarError: function(mensaje) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: mensaje,
+            confirmButtonText: 'Aceptar'
+        });
+    },
+
+    guardarEmpresa: function() {
+        if (this.empresaEditando) {
+            this.actualizarEmpresa();
+        } else {
+            this.crearEmpresa();
+        }
+    },
+
+    escapeHtml: function(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 
-    mostrarError(mensaje) {
-        // Implementar sistema de notificaciones
-        alert(`Error: ${mensaje}`);
-    }
 
-    mostrarExito(mensaje) {
-        // Implementar sistema de notificaciones
-        alert(`Éxito: ${mensaje}`);
-    }
-}
+};
 
-// Inicializar la aplicación de empresas
-document.addEventListener('DOMContentLoaded', () => {
-    window.companiesApp = new CompaniesApp();
+// Inicializar la aplicación cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', function() {
+    companiesApp.init();
 });
+
+// Cerrar modales al hacer clic fuera
+window.onclick = function(event) {
+    const modalNueva = document.getElementById('modalNuevaEmpresa');
+    const modalDetalles = document.getElementById('modalDetallesEmpresa');
+    
+    if (event.target === modalNueva) {
+        companiesApp.cerrarModal();
+    }
+    if (event.target === modalDetalles) {
+        companiesApp.cerrarModalDetalles();
+    }
+};

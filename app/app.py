@@ -7,6 +7,7 @@ from flask_mysqldb import MySQL
 from utils.decorators import login_required, role_required
 from datetime import datetime
 from routes.clientes import init_clientes_routes
+from routes.empresas import init_empresas_routes
 
 # Obtener el directorio base del proyecto
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -25,6 +26,8 @@ swagger = Swagger(app, template=swagger_template)
 # Después de crear la app y mysql
 clientes_bp = init_clientes_routes(app, mysql)
 app.register_blueprint(clientes_bp, url_prefix='/')
+empresas_bp = init_empresas_routes(app, mysql)
+app.register_blueprint(empresas_bp, url_prefix='/')
 
 # Context processor
 @app.context_processor
@@ -294,7 +297,7 @@ def clientes_page():
 @login_required
 @role_required([1, 2])
 def empresas_page():
-    """Página de gestión de clientes"""
+    """Página de gestión de empresas"""
     return render_template('empresas.html')
 
 @app.route('/incidencias')

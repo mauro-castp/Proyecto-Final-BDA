@@ -99,7 +99,7 @@
 <div id="modalNuevaEmpresa" class="modal">
     <div class="modal-content">
         <div class="modal-header">
-            <h3><i class="fas fa-plus-circle"></i> Nueva Empresa</h3>
+            <h3 id="modalEmpresaTitulo"><i class="fas fa-plus-circle"></i> Nueva Empresa</h3>
             <button class="btn-close" onclick="companiesApp.cerrarModal()">
                 <i class="fas fa-times"></i>
             </button>
@@ -144,8 +144,8 @@
             <button type="button" class="btn btn-secondary" onclick="companiesApp.cerrarModal()">
                 Cancelar
             </button>
-            <button type="button" class="btn btn-primary" onclick="companiesApp.crearEmpresa()">
-                <i class="fas fa-save"></i> Crear Empresa
+            <button type="button" class="btn btn-primary" onclick="companiesApp.guardarEmpresa()">
+                <i class="fas fa-save"></i> Guardar Empresa
             </button>
         </div>
     </div>
@@ -168,5 +168,7 @@
 {% endblock %}
 
 {% block js_specific %}
+<!-- Incluir SweetAlert2 -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="{{ url_for('static', filename='js/empresas.js') }}"></script>
 {% endblock %}
