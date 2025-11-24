@@ -1,0 +1,4 @@
+Flask==2.3.3
+Flask-MySQLdb==1.0.1
+Flasgger==0.9.7.1
+PyMySQL==1.1.0
