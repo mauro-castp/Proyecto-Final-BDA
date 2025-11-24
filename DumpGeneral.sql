@@ -1240,11 +1240,11 @@ CREATE TABLE `roles` (
 LOCK TABLES `roles` WRITE;
 /*!40000 ALTER TABLE `roles` DISABLE KEYS */;
 set autocommit=0;
-INSERT INTO `roles` (`nombre_rol`, `descripcion`, `id_estado_rol`) VALUES
-('Administrador', 'Acceso total al sistema', 1),
-('Planificador', 'Gestiona rutas, pedidos y asignaciones', 1),
-('Repartidor', 'Solo ve y confirma sus entregas', 1),
-('Auditor', 'Consulta reportes y auditorías', 1);
+INSERT INTO roles (id_rol, nombre_rol, descripcion, id_estado_rol) VALUES
+(1, 'Administrador', 'Acceso total al sistema', 1),
+(2, 'Planificador', 'Gestiona rutas, pedidos y asignaciones', 1),
+(3, 'Repartidor', 'Solo ve y confirma sus entregas', 1),
+(4, 'Auditor', 'Consulta reportes y auditorías', 1);
 /*!40000 ALTER TABLE `roles` ENABLE KEYS */;
 UNLOCK TABLES;
 commit;
@@ -1488,11 +1488,11 @@ CREATE TABLE `usuarios` (
 LOCK TABLES `usuarios` WRITE;
 /*!40000 ALTER TABLE `usuarios` DISABLE KEYS */;
 set autocommit=0;
-INSERT INTO `usuarios` (`nombre`, `email`, `password`, `id_rol`, `id_estado_usuario`) VALUES
-('Administrador General', 'admin@demo.com', 'admin123', 1, 1),
-('Planificador Central', 'planificador@demo.com', 'plan123', 2, 1),
-('Repartidor Demo', 'repartidor@demo.com', 'rep123', 3, 1),
-('Auditor Demo', 'auditor@demo.com', 'aud123', 4, 1);
+INSERT INTO usuarios (id_usuario, nombre, email, password, id_rol, id_estado_usuario) VALUES
+(1, 'Administrador General', 'admin@demo.com', 'admin123', 1, 1),
+(2, 'Planificador Central', 'planificador@demo.com', 'plan123', 2, 1),
+(3, 'Repartidor Demo', 'repartidor@demo.com', 'rep123', 3, 1),
+(4, 'Auditor Demo', 'auditor@demo.com', 'aud123', 4, 1);
 /*!40000 ALTER TABLE `usuarios` ENABLE KEYS */;
 UNLOCK TABLES;
 commit;
