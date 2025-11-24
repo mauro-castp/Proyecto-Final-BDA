@@ -1,11 +1,6 @@
 -- =================================================================================
--- Preámbulo: Es una buena práctica limpiar las tablas temporales antes de crearlas
--- para evitar errores si el script se ejecuta más de una vez en la misma sesión.
--- =================================================================================
-
 -- Tabla Temporal 1: tmpOtp
 -- Propósito: Almacena el conteo de OTPs generados por ruta en el mes actual.
--- Se basa directamente en la vista vOtpPorRutaMes.
 -- =================================================================================
 DROP TEMPORARY TABLE IF EXISTS tmpOtp;
 CREATE TEMPORARY TABLE tmpOtp AS
@@ -24,11 +19,9 @@ WHERE
 GROUP BY 
     r.id_ruta, r.nombre_ruta;
 
-
 -- =================================================================================
 -- Tabla Temporal 2: tmpCostosKM
 -- Propósito: Materializa el análisis de costos por kilómetro para cada vehículo.
--- Se basa en la vista vCostosPorKM.
 -- =================================================================================
 DROP TEMPORARY TABLE IF EXISTS tmpCostosKM;
 CREATE TEMPORARY TABLE tmpCostosKM AS
@@ -37,6 +30,7 @@ SELECT
     v.placa,
     SUM(co.monto) AS Costo_Total,
     SUM(co.distancia_km) AS Distancia_Total_KM,
+    -- Se maneja la división por cero para evitar errores
     CASE 
         WHEN SUM(co.distancia_km) > 0 
         THEN SUM(co.monto) / SUM(co.distancia_km) 
@@ -49,11 +43,9 @@ JOIN
 GROUP BY 
     v.id_vehiculo, v.placa;
 
-
 -- =================================================================================
 -- Tabla Temporal 3: tmpProductividad
 -- Propósito: Guarda las métricas de productividad de cada repartidor en el mes actual.
--- Se basa en la vista vProductividadRepartidor.
 -- =================================================================================
 DROP TEMPORARY TABLE IF EXISTS tmpProductividad;
 CREATE TEMPORARY TABLE tmpProductividad AS
@@ -63,6 +55,7 @@ SELECT
     COUNT(e.id_entrega) AS Total_Entregas_Mes,
     SUM(CASE WHEN ee.nombre_estado = 'entregada' THEN 1 ELSE 0 END) AS Entregas_Completadas,
     SUM(CASE WHEN ee.nombre_estado = 'fallida' THEN 1 ELSE 0 END) AS Entregas_Fallidas,
+    -- Cálculo de la tasa de éxito, manejando división por cero
     CASE 
         WHEN COUNT(e.id_entrega) > 0 
         THEN (SUM(CASE WHEN ee.nombre_estado = 'entregada' THEN 1 ELSE 0 END) * 100.0 / COUNT(e.id_entrega))
@@ -79,7 +72,6 @@ WHERE
     AND MONTH(e.fecha_creacion) = MONTH(CURDATE()) AND YEAR(e.fecha_creacion) = YEAR(CURDATE())
 GROUP BY 
     u.id_usuario, u.nombre;
-
 
 -- =================================================================================
 -- Tabla Temporal 4: tmpKPIglobal
@@ -129,11 +121,9 @@ SELECT
      JOIN estados_incidencia ei ON i.id_estado_incidencia = ei.id_estado_incidencia
      WHERE ei.nombre_estado IN ('reportada', 'en investigacion')) AS Total_Incidencias_Activas;
 
-
 -- =================================================================================
 -- Tabla Temporal 5: tmpEntregasZona
 -- Propósito: Almacena el conteo de entregas por cada zona.
--- Se basa en la vista vEntregasPorZona.
 -- =================================================================================
 DROP TEMPORARY TABLE IF EXISTS tmpEntregasZona;
 CREATE TEMPORARY TABLE tmpEntregasZona AS
@@ -153,13 +143,3 @@ GROUP BY
     z.id_zona, z.nombre_zona
 ORDER BY 
     Total_Entregas DESC;
-
-
--- =================================================================================
--- Mensaje de confirmación
--- =================================================================================
-SELECT 'Tablas temporales creadas exitosamente. Puedes consultarlas ahora.' AS Mensaje;
-
--- Ejemplo de cómo consultar una de las tablas temporales:
--- SELECT * FROM tmpKPIglobal;
--- SELECT * FROM tmpProductividad;
