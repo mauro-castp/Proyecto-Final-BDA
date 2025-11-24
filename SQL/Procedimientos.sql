@@ -1154,7 +1154,7 @@ BEGIN
         SET v_total_paginas = CEILING(v_total / v_limite);
     END IF;
 
-    -- Obtener clientes
+    -- Obtener clientes ORDENADOS POR FECHA DESC (más recientes primero)
     SELECT 
         c.id_cliente,
         c.nombre,
@@ -1178,7 +1178,8 @@ BEGIN
            c.nombre LIKE CONCAT('%', p_busqueda, '%') OR
            c.email LIKE CONCAT('%', p_busqueda, '%') OR
            c.telefono LIKE CONCAT('%', p_busqueda, '%'))
-    ORDER BY c.nombre
+    -- ORDENAR POR FECHA: más recientes primero
+    ORDER BY c.fecha_creacion DESC, c.id_cliente DESC
     LIMIT v_limite OFFSET v_offset;
 
     -- Retornar información de paginación

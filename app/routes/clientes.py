@@ -6,7 +6,7 @@ clientes_bp = Blueprint('clientes', __name__)
 
 def init_clientes_routes(app, mysql):
     # Ruta para la página principal de clientes
-    @clientes_bp.route('/clientes')
+    clientes_bp = Blueprint('clientes', __name__)
     @login_required
     def clientes_page():
         return render_template('clientes.html')
