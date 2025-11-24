@@ -158,6 +158,17 @@ CREATE TABLE `clientes` (
 LOCK TABLES `clientes` WRITE;
 /*!40000 ALTER TABLE `clientes` DISABLE KEYS */;
 set autocommit=0;
+INSERT INTO `clientes` (`nombre`, `telefono`, `email`, `id_estado_cliente`) VALUES
+('Juan Pérez', '+1234567890', 'juan.perez@email.com', 1),
+('María García', '+1234567891', 'maria.garcia@email.com', 1),
+('Carlos López', '+1234567892', 'carlos.lopez@email.com', 1),
+('Ana Martínez', '+1234567893', 'ana.martinez@email.com', 1),
+('Pedro Rodríguez', '+1234567894', 'pedro.rodriguez@email.com', 1),
+('Laura Hernández', '+1234567895', 'laura.hernandez@email.com', 1),
+('Miguel Sánchez', '+1234567896', 'miguel.sanchez@email.com', 1),
+('Isabel Díaz', '+1234567897', 'isabel.diaz@email.com', 1),
+('Francisco Ruiz', '+1234567898', 'francisco.ruiz@email.com', 1),
+('Elena Torres', '+1234567899', 'elena.torres@email.com', 1);
 /*!40000 ALTER TABLE `clientes` ENABLE KEYS */;
 UNLOCK TABLES;
 commit;
@@ -196,6 +207,17 @@ CREATE TABLE `costos_operativos` (
 LOCK TABLES `costos_operativos` WRITE;
 /*!40000 ALTER TABLE `costos_operativos` DISABLE KEYS */;
 set autocommit=0;
+INSERT INTO `costos_operativos` (`id_vehiculo`, `id_ruta`, `id_tipo_costo`, `monto`, `distancia_km`, `fecha_costo`, `descripcion`) VALUES
+(1, 1, 1, 15.50, 25.50, CURDATE(), 'Combustible para ruta norte'),
+(2, 2, 2, 45.00, 18.75, CURDATE(), 'Cambio de aceite'),
+(3, 3, 3, 12.00, 32.00, CURDATE(), 'Peajes ruta este'),
+(4, 4, 4, 8.50, 28.25, CURDATE(), 'Estacionamiento centro'),
+(5, 5, 5, 12.00, 15.80, CURDATE(), 'Lavado completo'),
+(6, 6, 6, 25.00, 45.30, CURDATE(), 'Pago de seguro mensual'),
+(7, 7, 7, 15.00, 12.50, CURDATE(), 'Renovación de licencia'),
+(8, 8, 8, 35.00, 22.75, CURDATE(), 'Reparación de frenos'),
+(9, 9, 9, 20.00, 19.40, CURDATE(), 'Multa por estacionamiento'),
+(10, 10, 10, 10.00, 38.60, CURDATE(), 'Gastos varios');
 /*!40000 ALTER TABLE `costos_operativos` ENABLE KEYS */;
 UNLOCK TABLES;
 commit;
@@ -228,6 +250,17 @@ CREATE TABLE `detalle_pedido` (
 LOCK TABLES `detalle_pedido` WRITE;
 /*!40000 ALTER TABLE `detalle_pedido` DISABLE KEYS */;
 set autocommit=0;
+INSERT INTO `detalle_pedido` (`id_pedido`, `id_producto`, `cantidad`, `subtotal`) VALUES
+(1, 1, 1, 1200.00),
+(2, 2, 1, 800.00),
+(3, 1, 1, 1200.00),
+(3, 7, 1, 50.00),
+(4, 3, 1, 300.00),
+(4, 4, 1, 150.00),
+(5, 5, 1, 200.00),
+(5, 6, 1, 80.00),
+(6, 4, 1, 150.00),
+(7, 8, 1, 250.00);
 /*!40000 ALTER TABLE `detalle_pedido` ENABLE KEYS */;
 UNLOCK TABLES;
 commit;
@@ -268,6 +301,17 @@ CREATE TABLE `direcciones_cliente` (
 LOCK TABLES `direcciones_cliente` WRITE;
 /*!40000 ALTER TABLE `direcciones_cliente` DISABLE KEYS */;
 set autocommit=0;
+INSERT INTO `direcciones_cliente` (`id_cliente`, `direccion`, `id_zona`, `es_principal`, `id_estado_direccion`, `id_geo`) VALUES
+(1, 'Calle Principal 123, Apt 4B', 1, 1, 3, 1),
+(2, 'Avenida Central 456, Casa 2', 2, 1, 3, 2),
+(3, 'Calle Secundaria 789, Piso 3', 3, 1, 3, 3),
+(4, 'Boulevard Norte 321, Local 5', 4, 1, 3, 4),
+(5, 'Calle Sur 654, Edificio A', 5, 1, 3, 5),
+(6, 'Avenida Este 987, Casa 10', 6, 1, 3, 6),
+(7, 'Calle Oeste 147, Apt 7C', 7, 1, 3, 7),
+(8, 'Paseo del Parque 258, Piso 2', 8, 1, 3, 8),
+(9, 'Camino Real 369, Local 8', 9, 1, 3, 9),
+(10, 'Ruta Comercial 741, Casa 12', 10, 1, 3, 10);
 /*!40000 ALTER TABLE `direcciones_cliente` ENABLE KEYS */;
 UNLOCK TABLES;
 commit;
@@ -318,6 +362,17 @@ CREATE TABLE `entregas` (
 LOCK TABLES `entregas` WRITE;
 /*!40000 ALTER TABLE `entregas` DISABLE KEYS */;
 set autocommit=0;
+INSERT INTO `entregas` (`id_pedido`, `id_ruta`, `id_repartidor`, `id_estado_entrega`, `fecha_estimada_entrega`, `hora_inicio_entrega`, `hora_fin_entrega`, `fecha_real_entrega`, `tiempo_entrega_minutos`, `reintentos`, `cumplio_sla`, `fue_tarde`, `costo_entrega`) VALUES
+(1, 1, 3, 1, NOW() + INTERVAL 2 DAY, NULL, NULL, NULL, 0, 0, 0, 0, 5.00),
+(2, 2, 3, 2, NOW() + INTERVAL 1 DAY, NOW(), NULL, NULL, 0, 0, 0, 0, 4.50),
+(3, 3, 3, 3, NOW() + INTERVAL 3 DAY, NOW() - INTERVAL 30 MINUTE, NULL, NULL, 30, 0, 1, 0, 6.25),
+(4, 4, 3, 4, NOW() + INTERVAL 1 DAY, NOW() - INTERVAL 45 MINUTE, NULL, NULL, 45, 0, 1, 0, 5.75),
+(5, 5, 3, 5, NOW() + INTERVAL 2 DAY, NOW() - INTERVAL 60 MINUTE, NOW(), NOW(), 60, 0, 1, 0, 7.20),
+(6, 6, 3, 5, NOW() - INTERVAL 1 DAY, NOW() - INTERVAL 2 HOUR, NOW() - INTERVAL 1 HOUR, NOW() - INTERVAL 1 HOUR, 60, 0, 1, 0, 8.50),
+(7, 7, 3, 5, NOW() - INTERVAL 2 DAY, NOW() - INTERVAL 3 HOUR, NOW() - INTERVAL 2 HOUR, NOW() - INTERVAL 2 HOUR, 60, 0, 1, 0, 9.30),
+(8, 8, 3, 6, NOW() + INTERVAL 4 DAY, NOW() - INTERVAL 15 MINUTE, NOW(), NULL, 15, 1, 0, 0, 3.80),
+(9, 9, 3, 1, NOW() + INTERVAL 2 DAY, NULL, NULL, NULL, 0, 0, 0, 0, 4.20),
+(10, 10, 3, 2, NOW() + INTERVAL 3 DAY, NOW(), NULL, NULL, 0, 0, 0, 0, 5.60);
 /*!40000 ALTER TABLE `entregas` ENABLE KEYS */;
 UNLOCK TABLES;
 commit;
@@ -737,6 +792,18 @@ CREATE TABLE `evidencias` (
 LOCK TABLES `evidencias` WRITE;
 /*!40000 ALTER TABLE `evidencias` DISABLE KEYS */;
 set autocommit=0;
+-- Inserts para evidencias
+INSERT INTO `evidencias` (`id_entrega`, `id_costo_operativo`, `id_incidencia`, `tipo`, `url`, `descripcion`) VALUES
+(5, NULL, NULL, 'foto_entrega', '/evidencias/entrega_5_1.jpg', 'Foto del paquete entregado'),
+(6, NULL, NULL, 'firma_cliente', '/evidencias/firma_6_1.png', 'Firma del cliente recibido'),
+(NULL, 1, NULL, 'foto_costo', '/evidencias/costo_1_1.jpg', 'Ticket de combustible'),
+(NULL, 2, NULL, 'foto_costo', '/evidencias/costo_2_1.jpg', 'Factura de mantenimiento'),
+(7, NULL, NULL, 'foto_entrega', '/evidencias/entrega_7_1.jpg', 'Foto del lugar de entrega'),
+(NULL, 3, NULL, 'foto_costo', '/evidencias/costo_3_1.jpg', 'Ticket de peaje'),
+(8, NULL, NULL, 'firma_cliente', '/evidencias/firma_8_1.png', 'Firma de rechazo'),
+(NULL, 4, NULL, 'foto_costo', '/evidencias/costo_4_1.jpg', 'Ticket de estacionamiento'),
+(5, NULL, NULL, 'otro', '/evidencias/entrega_5_2.pdf', 'Documentación adicional'),
+(NULL, 5, NULL, 'foto_costo', '/evidencias/costo_5_1.jpg', 'Factura de lavado');
 /*!40000 ALTER TABLE `evidencias` ENABLE KEYS */;
 UNLOCK TABLES;
 commit;
@@ -764,6 +831,17 @@ CREATE TABLE `geolocalizacion` (
 LOCK TABLES `geolocalizacion` WRITE;
 /*!40000 ALTER TABLE `geolocalizacion` DISABLE KEYS */;
 set autocommit=0;
+INSERT INTO `geolocalizacion` (`latitud`, `longitud`) VALUES
+(40.7128000, -74.0060000),
+(40.7138000, -74.0070000),
+(40.7148000, -74.0080000),
+(40.7158000, -74.0090000),
+(40.7168000, -74.0100000),
+(40.7178000, -74.0110000),
+(40.7188000, -74.0120000),
+(40.7198000, -74.0130000),
+(40.7208000, -74.0140000),
+(40.7218000, -74.0150000);
 /*!40000 ALTER TABLE `geolocalizacion` ENABLE KEYS */;
 UNLOCK TABLES;
 commit;
@@ -812,6 +890,17 @@ CREATE TABLE `incidencias` (
 LOCK TABLES `incidencias` WRITE;
 /*!40000 ALTER TABLE `incidencias` DISABLE KEYS */;
 set autocommit=0;
+INSERT INTO `incidencias` (`id_tipo_incidencia`, `id_zona`, `descripcion`, `fecha_inicio`, `fecha_fin`, `id_estado_incidencia`, `id_nivel_impacto`, `radio_afectacion_km`, `id_usuario_reporta`, `id_geo`) VALUES
+(1, 1, 'Congestión vehicular por accidente menor', NOW() - INTERVAL 2 HOUR, NOW() - INTERVAL 1 HOUR, 3, 2, 1.50, 3, 1),
+(2, 2, 'Lluvia intensa afectando visibilidad', NOW() - INTERVAL 3 HOUR, NULL, 2, 3, 3.00, 3, 2),
+(3, 3, 'Accidente vehicular en avenida principal', NOW() - INTERVAL 1 HOUR, NULL, 1, 4, 2.00, 3, 3),
+(4, 4, 'Manifestación bloqueando calles principales', NOW() - INTERVAL 4 HOUR, NOW() - INTERVAL 2 HOUR, 3, 4, 1.00, 3, 4),
+(5, 5, 'Trabajos de mantenimiento en vía rápida', NOW() - INTERVAL 5 HOUR, NOW() - INTERVAL 1 HOUR, 3, 2, 0.50, 3, 5),
+(6, 6, 'Vehículo con falla mecánica', NOW() - INTERVAL 2 HOUR, NOW() - INTERVAL 30 MINUTE, 3, 3, 0.00, 3, 6),
+(7, 7, 'Cliente no se encuentra en domicilio', NOW() - INTERVAL 1 HOUR, NULL, 2, 1, 0.00, 3, 7),
+(8, 8, 'Dirección incorrecta en sistema', NOW() - INTERVAL 3 HOUR, NOW() - INTERVAL 1 HOUR, 3, 2, 0.00, 3, 8),
+(9, 9, 'Paquete dañado durante transporte', NOW() - INTERVAL 2 HOUR, NULL, 1, 3, 0.00, 3, 9),
+(10, 10, 'Problema de comunicación con centro', NOW() - INTERVAL 1 HOUR, NOW() - INTERVAL 30 MINUTE, 3, 2, 0.00, 3, 10);
 /*!40000 ALTER TABLE `incidencias` ENABLE KEYS */;
 UNLOCK TABLES;
 commit;
@@ -878,6 +967,17 @@ CREATE TABLE `niveles_impacto` (
 LOCK TABLES `niveles_impacto` WRITE;
 /*!40000 ALTER TABLE `niveles_impacto` DISABLE KEYS */;
 set autocommit=0;
+INSERT INTO `niveles_impacto` (`nombre_nivel`, `descripcion`) VALUES
+('Bajo', 'Impacto mínimo en las operaciones'),
+('Medio', 'Impacto moderado en las operaciones'),
+('Alto', 'Impacto significativo en las operaciones'),
+('Crítico', 'Impacto crítico que detiene operaciones'),
+('Localizado', 'Impacto en área específica'),
+('Extendido', 'Impacto en múltiples áreas'),
+('Temporal', 'Impacto de corta duración'),
+('Prolongado', 'Impacto de larga duración'),
+('Recurrente', 'Impacto que se repite frecuentemente'),
+('Inesperado', 'Impacto no previsto');
 /*!40000 ALTER TABLE `niveles_impacto` ENABLE KEYS */;
 UNLOCK TABLES;
 commit;
@@ -909,6 +1009,17 @@ CREATE TABLE `otp` (
 LOCK TABLES `otp` WRITE;
 /*!40000 ALTER TABLE `otp` DISABLE KEYS */;
 set autocommit=0;
+INSERT INTO `otp` (`id_entrega`, `codigo`, `verificado`, `fecha_verificado`) VALUES
+(1, '123456', 0, NULL),
+(2, '234567', 0, NULL),
+(3, '345678', 1, NOW() - INTERVAL 30 MINUTE),
+(4, '456789', 1, NOW() - INTERVAL 45 MINUTE),
+(5, '567890', 1, NOW() - INTERVAL 60 MINUTE),
+(6, '678901', 1, NOW() - INTERVAL 120 MINUTE),
+(7, '789012', 1, NOW() - INTERVAL 180 MINUTE),
+(8, '890123', 0, NULL),
+(9, '901234', 0, NULL),
+(10, '012345', 0, NULL);
 /*!40000 ALTER TABLE `otp` ENABLE KEYS */;
 UNLOCK TABLES;
 commit;
@@ -947,6 +1058,17 @@ CREATE TABLE `paradas_ruta` (
 LOCK TABLES `paradas_ruta` WRITE;
 /*!40000 ALTER TABLE `paradas_ruta` DISABLE KEYS */;
 set autocommit=0;
+INSERT INTO `paradas_ruta` (`id_ruta`, `id_pedido`, `orden_secuencia`, `id_estado_parada`, `distancia_desde_inicio_km`, `tiempo_estimado_desde_inicio_min`, `fecha_estimada_entrega`) VALUES
+(1, 1, 1, 1, 0.00, 0, NOW() + INTERVAL 2 DAY),
+(2, 2, 1, 2, 0.00, 0, NOW() + INTERVAL 1 DAY),
+(3, 3, 1, 3, 0.00, 0, NOW() + INTERVAL 3 DAY),
+(4, 4, 1, 4, 0.00, 0, NOW() + INTERVAL 1 DAY),
+(5, 5, 1, 1, 0.00, 0, NOW() + INTERVAL 2 DAY),
+(6, 6, 1, 2, 0.00, 0, NOW() - INTERVAL 1 DAY),
+(7, 7, 1, 3, 0.00, 0, NOW() - INTERVAL 2 DAY),
+(8, 8, 1, 4, 0.00, 0, NOW() + INTERVAL 4 DAY),
+(9, 9, 1, 1, 0.00, 0, NOW() + INTERVAL 2 DAY),
+(10, 10, 1, 2, 0.00, 0, NOW() + INTERVAL 3 DAY);
 /*!40000 ALTER TABLE `paradas_ruta` ENABLE KEYS */;
 UNLOCK TABLES;
 commit;
@@ -989,6 +1111,17 @@ CREATE TABLE `pedidos` (
 LOCK TABLES `pedidos` WRITE;
 /*!40000 ALTER TABLE `pedidos` DISABLE KEYS */;
 set autocommit=0;
+INSERT INTO `pedidos` (`id_cliente`, `id_direccion_entrega`, `id_estado_pedido`, `fecha_estimada_entrega`, `total_pedido`, `peso_total`, `volumen_total`) VALUES
+(1, 1, 1, NOW() + INTERVAL 2 DAY, 1200.00, 2.50, 0.0150),
+(2, 2, 2, NOW() + INTERVAL 1 DAY, 800.00, 0.20, 0.0008),
+(3, 3, 3, NOW() + INTERVAL 3 DAY, 1100.00, 2.70, 0.0165),
+(4, 4, 4, NOW() + INTERVAL 1 DAY, 450.00, 0.75, 0.0045),
+(5, 5, 5, NOW() + INTERVAL 2 DAY, 280.00, 1.25, 0.0051),
+(6, 6, 6, NOW() - INTERVAL 1 DAY, 150.00, 0.25, 0.0015),
+(7, 7, 6, NOW() - INTERVAL 2 DAY, 250.00, 8.50, 0.0450),
+(8, 8, 1, NOW() + INTERVAL 4 DAY, 90.00, 0.48, 0.0021),
+(9, 9, 2, NOW() + INTERVAL 2 DAY, 60.00, 0.30, 0.0012),
+(10, 10, 3, NOW() + INTERVAL 3 DAY, 40.00, 0.18, 0.0009);
 /*!40000 ALTER TABLE `pedidos` ENABLE KEYS */;
 UNLOCK TABLES;
 commit;
@@ -1021,6 +1154,17 @@ CREATE TABLE `penalizaciones` (
 LOCK TABLES `penalizaciones` WRITE;
 /*!40000 ALTER TABLE `penalizaciones` DISABLE KEYS */;
 set autocommit=0;
+INSERT INTO `penalizaciones` (`id_entrega`, `id_tipo_penalizacion`, `monto`) VALUES
+(8, 1, 25.00),
+(8, 2, 15.00),
+(8, 3, 10.00),
+(8, 4, 20.00),
+(8, 5, 30.00),
+(8, 6, 12.50),
+(8, 7, 8.00),
+(8, 8, 18.00),
+(8, 9, 22.00),
+(8, 10, 14.00);
 /*!40000 ALTER TABLE `penalizaciones` ENABLE KEYS */;
 UNLOCK TABLES;
 commit;
@@ -1054,6 +1198,17 @@ CREATE TABLE `productos` (
 LOCK TABLES `productos` WRITE;
 /*!40000 ALTER TABLE `productos` DISABLE KEYS */;
 set autocommit=0;
+INSERT INTO `productos` (`nombre`, `descripcion`, `peso_kg`, `volumen_m3`, `precio_unitario`, `id_estado_producto`) VALUES
+('Laptop Gaming', 'Laptop para gaming de alta gama', 2.50, 0.0150, 1200.00, 1),
+('Smartphone Pro', 'Teléfono inteligente última generación', 0.20, 0.0008, 800.00, 1),
+('Tablet 10 pulgadas', 'Tablet con pantalla de 10 pulgadas', 0.50, 0.0030, 300.00, 1),
+('Auriculares Inalámbricos', 'Auriculares Bluetooth con cancelación de ruido', 0.25, 0.0015, 150.00, 1),
+('Monitor 24"', 'Monitor LED 24 pulgadas Full HD', 3.20, 0.0250, 200.00, 1),
+('Teclado Mecánico', 'Teclado mecánico RGB', 1.10, 0.0045, 80.00, 1),
+('Mouse Gaming', 'Mouse para gaming con DPI ajustable', 0.15, 0.0006, 50.00, 1),
+('Impresora Multifunción', 'Impresora láser multifunción', 8.50, 0.0450, 250.00, 1),
+('Disco Duro Externo 1TB', 'Disco duro externo portátil', 0.30, 0.0012, 60.00, 1),
+('Cámara Web HD', 'Cámara web 1080p para streaming', 0.18, 0.0009, 40.00, 1);
 /*!40000 ALTER TABLE `productos` ENABLE KEYS */;
 UNLOCK TABLES;
 commit;
@@ -1133,6 +1288,17 @@ CREATE TABLE `rutas` (
 LOCK TABLES `rutas` WRITE;
 /*!40000 ALTER TABLE `rutas` DISABLE KEYS */;
 set autocommit=0;
+INSERT INTO `rutas` (`nombre_ruta`, `id_zona`, `fecha_ruta`, `id_vehiculo`, `id_repartidor`, `id_estado_ruta`, `distancia_total_km`, `tiempo_estimado_minutos`, `costo`) VALUES
+('Ruta Norte Mañana', 1, CURDATE(), 1, 3, 1, 25.50, 180, 38.25),
+('Ruta Sur Tarde', 2, CURDATE(), 2, 3, 2, 18.75, 120, 46.88),
+('Ruta Este Express', 3, CURDATE(), 3, 3, 1, 32.00, 210, 112.00),
+('Ruta Oeste Regular', 4, CURDATE(), 4, 3, 3, 28.25, 165, 127.13),
+('Ruta Centro Urgente', 5, CURDATE(), 5, 3, 2, 15.80, 90, 94.80),
+('Ruta Suburbana', 6, CURDATE(), 6, 3, 1, 45.30, 240, 362.40),
+('Ruta Financiera', 7, CURDATE(), 7, 3, 3, 12.50, 75, 6.25),
+('Ruta Universitaria', 8, CURDATE(), 8, 3, 2, 22.75, 135, 6.83),
+('Ruta Hospitalaria', 9, CURDATE(), 9, 3, 1, 19.40, 110, 38.80),
+('Ruta Industrial', 10, CURDATE(), 10, 3, 3, 38.60, 195, 270.20);
 /*!40000 ALTER TABLE `rutas` ENABLE KEYS */;
 UNLOCK TABLES;
 commit;
@@ -1160,6 +1326,17 @@ CREATE TABLE `tipos_costo` (
 LOCK TABLES `tipos_costo` WRITE;
 /*!40000 ALTER TABLE `tipos_costo` DISABLE KEYS */;
 set autocommit=0;
+INSERT INTO `tipos_costo` (`nombre_tipo`, `descripcion`) VALUES
+('Combustible', 'Gastos de combustible'),
+('Mantenimiento', 'Costos de mantenimiento del vehículo'),
+('Peaje', 'Gastos de peajes y vialidad'),
+('Estacionamiento', 'Costos de estacionamiento'),
+('Lavado', 'Lavado y limpieza del vehículo'),
+('Seguro', 'Seguros del vehículo'),
+('Impuestos', 'Impuestos y licencias'),
+('Reparaciones', 'Reparaciones y refacciones'),
+('Sanciones', 'Multas y sanciones de tránsito'),
+('Otros', 'Otros costos operativos');
 /*!40000 ALTER TABLE `tipos_costo` ENABLE KEYS */;
 UNLOCK TABLES;
 commit;
@@ -1187,6 +1364,17 @@ CREATE TABLE `tipos_incidencia` (
 LOCK TABLES `tipos_incidencia` WRITE;
 /*!40000 ALTER TABLE `tipos_incidencia` DISABLE KEYS */;
 set autocommit=0;
+INSERT INTO `tipos_incidencia` (`nombre_tipo`, `descripcion`) VALUES
+('Tráfico', 'Congestión vehicular'),
+('Clima', 'Condiciones climáticas adversas'),
+('Accidente', 'Accidente de tránsito'),
+('Protesta', 'Manifestación o protesta'),
+('Obra Vial', 'Trabajos en la vía pública'),
+('Vehicular', 'Problema con el vehículo'),
+('Cliente', 'Problema con el cliente'),
+('Dirección', 'Problema con la dirección'),
+('Paquete', 'Problema con el paquete'),
+('Otro', 'Otro tipo de incidencia');
 /*!40000 ALTER TABLE `tipos_incidencia` ENABLE KEYS */;
 UNLOCK TABLES;
 commit;
@@ -1253,6 +1441,17 @@ CREATE TABLE `tipos_vehiculo` (
 LOCK TABLES `tipos_vehiculo` WRITE;
 /*!40000 ALTER TABLE `tipos_vehiculo` DISABLE KEYS */;
 set autocommit=0;
+INSERT INTO `tipos_vehiculo` (`nombre`, `capacidad_maxima_kg`, `capacidad_volumen_m3`, `costo_por_km_base`) VALUES
+('Moto', 50.00, 0.50, 0.15),
+('Auto Compacto', 200.00, 2.00, 0.25),
+('Camioneta', 500.00, 4.00, 0.35),
+('Furgoneta Pequeña', 800.00, 6.00, 0.45),
+('Furgoneta Mediana', 1200.00, 10.00, 0.60),
+('Camión Ligero', 2000.00, 15.00, 0.80),
+('Bicicleta', 10.00, 0.20, 0.05),
+('Patineta Eléctrica', 5.00, 0.10, 0.03),
+('Cuatrimoto', 80.00, 0.80, 0.20),
+('Van de Reparto', 1500.00, 12.00, 0.70);
 /*!40000 ALTER TABLE `tipos_vehiculo` ENABLE KEYS */;
 UNLOCK TABLES;
 commit;
@@ -1329,6 +1528,17 @@ CREATE TABLE `vehiculos` (
 LOCK TABLES `vehiculos` WRITE;
 /*!40000 ALTER TABLE `vehiculos` DISABLE KEYS */;
 set autocommit=0;
+INSERT INTO `vehiculos` (`id_tipo_vehiculo`, `placa`, `costo_por_km`, `id_estado_vehiculo`) VALUES
+(1, 'MOT-001', 0.15, 1),
+(2, 'AUT-002', 0.25, 1),
+(3, 'CAM-003', 0.35, 1),
+(4, 'FUR-004', 0.45, 1),
+(5, 'FUR-005', 0.60, 1),
+(6, 'CAM-006', 0.80, 1),
+(7, 'BIC-007', 0.05, 1),
+(8, 'PAT-008', 0.03, 1),
+(9, 'CUA-009', 0.20, 1),
+(10, 'VAN-010', 0.70, 1);
 /*!40000 ALTER TABLE `vehiculos` ENABLE KEYS */;
 UNLOCK TABLES;
 commit;
@@ -1365,6 +1575,17 @@ CREATE TABLE `zonas` (
 LOCK TABLES `zonas` WRITE;
 /*!40000 ALTER TABLE `zonas` DISABLE KEYS */;
 set autocommit=0;
+INSERT INTO `zonas` (`nombre_zona`, `descripcion`, `radio_km`, `id_estado_zona`, `id_geo_centro`) VALUES
+('Zona Norte', 'Área residencial norte', 5.00, 1, 1),
+('Zona Sur', 'Área comercial sur', 4.50, 1, 2),
+('Zona Este', 'Zona industrial este', 6.00, 1, 3),
+('Zona Oeste', 'Área mixta oeste', 5.50, 1, 4),
+('Centro Ciudad', 'Zona centro densamente poblada', 3.00, 1, 5),
+('Zona Suburbana', 'Área suburbana residencial', 7.00, 1, 6),
+('Distrito Financiero', 'Área de oficinas y negocios', 2.50, 1, 7),
+('Zona Universitaria', 'Cerca de campus universitario', 4.00, 1, 8),
+('Zona Hospital', 'Área médica y hospitalaria', 3.50, 1, 9),
+('Zona Parque Industrial', 'Área industrial y logística', 8.00, 1, 10);
 /*!40000 ALTER TABLE `zonas` ENABLE KEYS */;
 UNLOCK TABLES;
 commit;
