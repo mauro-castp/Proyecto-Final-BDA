@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+
+{% block title %}Clientes - LUM System{% endblock %}
+
+{% block css_specific %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/clientes.css') }}">
+{% endblock %}
+
+{% block page_title %}Gestión de Clientes{% endblock %}
+
+{% block content %}
+<div class="clients-header">
+    <div class="header-actions">
+        <button class="btn btn-primary" onclick="clientsApp.mostrarModalNuevoCliente()">
+            <i class="fas fa-plus"></i> Nuevo Cliente
+        </button>
+        <div class="header-filters">
+            <select id="filtroEstado" class="form-control">
+                <option value="">Todos los estados</option>
+                <option value="activo">Activos</option>
+                <option value="inactivo">Inactivos</option>
+                <option value="bloqueado">Bloqueados</option>
+            </select>
+            <input type="text" id="filtroBusqueda" class="form-control" placeholder="Buscar cliente...">
+            <button class="btn btn-outline" onclick="clientsApp.aplicarFiltros()">
+                <i class="fas fa-filter"></i> Filtrar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Estadísticas Rápidas -->
+<div class="clients-stats">
+    <div class="stat-item">
+        <div class="stat-number" id="totalClientes">0</div>
+        <div class="stat-label">Total Clientes</div>
+    </div>
+    <div class="stat-item">
+        <div class="stat-number" id="clientesActivos">0</div>
+        <div class="stat-label">Activos</div>
+    </div>
+    <div class="stat-item">
+        <div class="stat-number" id="clientesInactivos">0</div>
+        <div class="stat-label">Inactivos</div>
+    </div>
+    <div class="stat-item">
+        <div class="stat-number" id="clientesBloqueados">0</div>
+        <div class="stat-label">Bloqueados</div>
+    </div>
+</div>
+
+<!-- Lista de Clientes -->
+<div class="clients-container">
+    <div class="table-responsive">
+        <table class="table clients-table">
+            <thead>
+                <tr>
+                    <th>Nombre</th>
+                    <th>Teléfono</th>
+                    <th>Email</th>
+                    <th>Estado</th>
+                    <th>Fecha Registro</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="tablaClientes">
+                <tr>
+                    <td colspan="6" class="text-center">
+                        <div class="loading-spinner">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <span>Cargando clientes...</span>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Paginación -->
+<div class="pagination-container">
+    <div class="pagination-info">
+        Mostrando <span id="mostrandoDesde">0</span>-<span id="mostrandoHasta">0</span> de <span
+            id="totalRegistros">0</span> clientes
+    </div>
+    <div class="pagination-controls">
+        <button class="btn-pagination" id="btnAnterior" disabled>
+            <i class="fas fa-chevron-left"></i> Anterior
+        </button>
+        <div class="pagination-numbers" id="paginationNumbers"></div>
+        <button class="btn-pagination" id="btnSiguiente" disabled>
+            Siguiente <i class="fas fa-chevron-right"></i>
+        </button>
+    </div>
+</div>
+
+<!-- Modal Nuevo Cliente -->
+<div id="modalNuevoCliente" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-plus-circle"></i> Nuevo Cliente</h3>
+            <button class="btn-close" onclick="clientsApp.cerrarModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form id="formNuevoCliente">
+                <div class="form-group">
+                    <label for="nombreCliente">Nombre *</label>
+                    <input type="text" id="nombreCliente" class="form-control" required
+                        placeholder="Ingrese el nombre completo del cliente">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="telefonoCliente">Teléfono</label>
+                        <input type="tel" id="telefonoCliente" class="form-control" placeholder="Ej: +1234567890">
+                    </div>
+                    <div class="form-group">
+                        <label for="emailCliente">Email</label>
+                        <input type="email" id="emailCliente" class="form-control" placeholder="cliente@ejemplo.com">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="estadoCliente">Estado *</label>
+                    <select id="estadoCliente" class="form-control" required>
+                        <option value="">Seleccionar estado...</option>
+                        <option value="1">Activo</option>
+                        <option value="2">Inactivo</option>
+                        <option value="3">Bloqueado</option>
+                    </select>
+                </div>
+
+                <!-- Sección de Direcciones -->
+                <div class="direcciones-section">
+                    <div class="section-header">
+                        <h4><i class="fas fa-map-marker-alt"></i> Direcciones</h4>
+                        <button type="button" class="btn btn-outline btn-sm" onclick="clientsApp.agregarDireccion()">
+                            <i class="fas fa-plus"></i> Agregar Dirección
+                        </button>
+                    </div>
+
+                    <div id="listaDirecciones">
+                        <!-- Direcciones se agregarán aquí dinámicamente -->
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="clientsApp.cerrarModal()">
+                Cancelar
+            </button>
+            <button type="button" class="btn btn-primary" onclick="clientsApp.crearCliente()">
+                <i class="fas fa-save"></i> Crear Cliente
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Detalles Cliente -->
+<div id="modalDetallesCliente" class="modal">
+    <div class="modal-content modal-lg">
+        <div class="modal-header">
+            <h3><i class="fas fa-info-circle"></i> Detalles del Cliente</h3>
+            <button class="btn-close" onclick="clientsApp.cerrarModalDetalles()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body" id="detallesClienteContent">
+            <!-- Contenido dinámico -->
+        </div>
+    </div>
+</div>
+
+<!-- Plantilla para dirección (oculta) -->
+<div id="direccionPlantilla" style="display: none;">
+    <div class="direccion-item">
+        <div class="direccion-header">
+            <h5>Dirección <span class="direccion-numero">1</span></h5>
+            <button type="button" class="btn-remove-direccion" onclick="clientsApp.eliminarDireccion(this)">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Dirección *</label>
+                <input type="text" class="form-control direccion-campo" required
+                    placeholder="Calle, número, piso, etc.">
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Ciudad *</label>
+                <input type="text" class="form-control ciudad-campo" required placeholder="Ciudad">
+            </div>
+            <div class="form-group">
+                <label>Código Postal</label>
+                <input type="text" class="form-control codigo-postal-campo" placeholder="Código postal">
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Provincia/Estado</label>
+                <input type="text" class="form-control provincia-campo" placeholder="Provincia o estado">
+            </div>
+            <div class="form-group">
+                <label>País</label>
+                <input type="text" class="form-control pais-campo" placeholder="País" value="España">
+            </div>
+        </div>
+        <div class="form-check">
+            <input type="checkbox" class="form-check-input direccion-principal">
+            <label class="form-check-label">Marcar como dirección principal</label>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block js_specific %}
+<script src="{{ url_for('static', filename='js/clientes.js') }}"></script>
+{% endblock %}

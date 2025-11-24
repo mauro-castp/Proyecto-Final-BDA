@@ -285,6 +285,13 @@ def clientes_page():
     """Página de gestión de clientes"""
     return render_template('clientes.html')
 
+@app.route('/empresas')
+@login_required
+@role_required([1, 2])
+def empresas_page():
+    """Página de gestión de clientes"""
+    return render_template('empresas.html')
+
 @app.route('/incidencias')
 @login_required
 def incidencias_page():

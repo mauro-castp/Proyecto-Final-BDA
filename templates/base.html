@@ -25,6 +25,14 @@
                     endif %}>
                     <i class="fas fa-chart-line"></i> <span>dashboard</span>
                 </a></li>
+            <li><a href="{{ url_for('clientes_page') }}" {% if request.endpoint=='clientes_page' %}class="active" {%
+                    endif %}>
+                    <i class="fas fa-users"></i> <span>Clientes</span>
+                </a></li>
+            <li><a href="{{ url_for('empresas_page') }}" {% if request.endpoint=='empresas_page' %}class="active" {%
+                    endif %}>
+                    <i class="fas fa-building"></i> <span>Empresas</span>
+                </a></li>
             <li><a href="{{ url_for('pedidos_page') }}" {% if request.endpoint=='pedidos_page' %}class="active" {% endif
                     %}>
                     <i class="fas fa-shopping-cart"></i> <span>Pedidos</span>
