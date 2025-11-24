@@ -1511,6 +1511,8 @@ BEGIN
     END IF;
     
     COMMIT;
+
+    
 DELIMITER $$
 CREATE PROCEDURE obtenerNombreUsuario(
     IN p_id_usuario INT
