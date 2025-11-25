@@ -10,6 +10,7 @@ from routes.clientes import init_clientes_routes
 from routes.empresas import init_empresas_routes
 from routes.pedidos import init_pedidos_routes
 from routes.incidencias import init_incidencias_routes
+from routes.rutas import init_rutas_routes
 
 # Obtener el directorio base del proyecto
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -37,6 +38,9 @@ app.register_blueprint(pedidos_bp, url_prefix='/')
 
 incidencias_bp = init_incidencias_routes(app, mysql)
 app.register_blueprint(incidencias_bp, url_prefix='/')
+
+rutas_bp = init_rutas_routes(app, mysql)
+app.register_blueprint(rutas_bp, url_prefix='/')
 
 # Context processor
 @app.context_processor

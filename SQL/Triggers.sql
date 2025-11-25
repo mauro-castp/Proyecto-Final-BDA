@@ -74,66 +74,61 @@ DELIMITER ;
 -- -----------------------------------------------------
 -- Triggers de Auditoría para la tabla `rutas`
 -- -----------------------------------------------------
+-- Trigger para INSERT (crear ruta)
 DELIMITER $$
-CREATE TRIGGER rutas_ai
+CREATE TRIGGER tr_rutas_after_insert
 AFTER INSERT ON rutas
 FOR EACH ROW
 BEGIN
     INSERT INTO aud_rutas (
-        id_ruta, valores_anteriores, valores_nuevos, usuario, fecha
+        id_ruta, nombre_ruta, id_zona, costo, usuario, accion
     ) VALUES (
-        NEW.id_ruta, NULL,
-        JSON_OBJECT(
-            'nombre_ruta', NEW.nombre_ruta, 'id_zona', NEW.id_zona, 'fecha_ruta', NEW.fecha_ruta,
-            'id_vehiculo', NEW.id_vehiculo, 'id_repartidor', NEW.id_repartidor, 'id_estado_ruta', NEW.id_estado_ruta,
-            'distancia_total_km', NEW.distancia_total_km, 'tiempo_estimado_minutos', NEW.tiempo_estimado_minutos, 'costo', NEW.costo
-        ),
-        CURRENT_USER(), NOW()
+        NEW.id_ruta, 
+        NEW.nombre_ruta, 
+        NEW.id_zona, 
+        NEW.costo,
+        USER(),
+        'INSERT'
     );
-END$$ 
+END $$
 DELIMITER ;
 
+-- Trigger para UPDATE (actualizar ruta)
 DELIMITER $$
-CREATE TRIGGER rutas_au
+CREATE TRIGGER tr_rutas_after_update
 AFTER UPDATE ON rutas
 FOR EACH ROW
 BEGIN
     INSERT INTO aud_rutas (
-        id_ruta, valores_anteriores, valores_nuevos, usuario, fecha
+        id_ruta, nombre_ruta, id_zona, costo, usuario, accion
     ) VALUES (
-        NEW.id_ruta,
-        JSON_OBJECT(
-            'nombre_ruta', OLD.nombre_ruta, 'id_zona', OLD.id_zona, 'fecha_ruta', OLD.fecha_ruta,
-            'id_vehiculo', OLD.id_vehiculo, 'id_repartidor', OLD.id_repartidor, 'id_estado_ruta', OLD.id_estado_ruta,
-            'distancia_total_km', OLD.distancia_total_km, 'tiempo_estimado_minutos', OLD.tiempo_estimado_minutos, 'costo', OLD.costo
-        ),
-        JSON_OBJECT(
-            'nombre_ruta', NEW.nombre_ruta, 'id_zona', NEW.id_zona, 'fecha_ruta', NEW.fecha_ruta,
-            'id_vehiculo', NEW.id_vehiculo, 'id_repartidor', NEW.id_repartidor, 'id_estado_ruta', NEW.id_estado_ruta,
-            'distancia_total_km', NEW.distancia_total_km, 'tiempo_estimado_minutos', NEW.tiempo_estimado_minutos, 'costo', NEW.costo
-        ),
-        CURRENT_USER(), NOW()
+        NEW.id_ruta, 
+        NEW.nombre_ruta, 
+        NEW.id_zona, 
+        NEW.costo,
+        USER(),
+        'UPDATE'
     );
-END$$ 
+END $$
 DELIMITER ;
 
+-- Trigger para DELETE (eliminar ruta)
 DELIMITER $$
-CREATE TRIGGER rutas_ad
+CREATE TRIGGER tr_rutas_after_delete
 AFTER DELETE ON rutas
 FOR EACH ROW
 BEGIN
     INSERT INTO aud_rutas (
-        id_ruta, valores_anteriores, valores_nuevos, usuario, fecha
+        id_ruta, nombre_ruta, id_zona, costo, usuario, accion
     ) VALUES (
-        OLD.id_ruta,
-        JSON_OBJECT(
-            'nombre_ruta', OLD.nombre_ruta, 'id_zona', OLD.id_zona, 'fecha_ruta', OLD.fecha_ruta,
-            'id_vehiculo', OLD.id_vehiculo, 'id_repartidor', OLD.id_repartidor, 'id_estado_ruta', OLD.id_estado_ruta,
-            'distancia_total_km', OLD.distancia_total_km, 'tiempo_estimado_minutos', OLD.tiempo_estimado_minutos, 'costo', OLD.costo
-        ),
-        NULL, CURRENT_USER(), NOW()
+        OLD.id_ruta, 
+        OLD.nombre_ruta, 
+        OLD.id_zona, 
+        OLD.costo,
+        USER(),
+        'DELETE'
     );
-END$$ 
+END $$
 DELIMITER ;
 -- -----------------------------------------------------
 -- Triggers de Auditoría para la tabla `entregas`

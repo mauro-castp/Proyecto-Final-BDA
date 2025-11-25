@@ -5,8 +5,6 @@ incidencias_bp = Blueprint('incidencias', __name__)
 
 def init_incidencias_routes(app, mysql):
     
-    # Ruta para la página de incidencias
-    incidencias_bp = Blueprint('incidencias', __name__)
     @login_required
     def incidencias_page():
         return render_template('incidencias.html')
