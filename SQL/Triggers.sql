@@ -326,23 +326,52 @@ END $$
 DELIMITER ;
 
 DELIMITER $$
-CREATE TRIGGER incidencias_ad
-AFTER DELETE ON incidencias
-FOR EACH ROW
+CREATE TRIGGER before_incidencias_delete
+    BEFORE DELETE ON incidencias
+    FOR EACH ROW
 BEGIN
+    DECLARE v_usuario_reporta_nombre VARCHAR(100);
+    DECLARE v_geolocalizacion_text VARCHAR(255);
+    
+    -- Obtener nombre del usuario que reporta
+    SELECT nombre INTO v_usuario_reporta_nombre
+    FROM usuarios 
+    WHERE id_usuario = OLD.id_usuario_reporta;
+    
+    -- Obtener geolocalización si existe
+    IF OLD.id_geo IS NOT NULL THEN
+        SELECT CONCAT(latitud, ', ', longitud) INTO v_geolocalizacion_text
+        FROM geolocalizacion 
+        WHERE id_geo = OLD.id_geo;
+    ELSE
+        SET v_geolocalizacion_text = NULL;
+    END IF;
+    
+    -- Insertar en auditoría antes de eliminar
     INSERT INTO aud_incidencias (
-        id_incidencia, valores_anteriores, valores_nuevos, usuario, fecha
+        id_incidencia,
+        id_tipo_incidencia,
+        id_zona,
+        descripcion,
+        fecha_inicio,
+        fecha_fin,
+        id_estado_incidencia,
+        id_nivel_impacto,
+        usuario_reporta,
+        geolocalizacion
     ) VALUES (
         OLD.id_incidencia,
-        JSON_OBJECT(
-            'id_tipo_incidencia', OLD.id_tipo_incidencia, 'id_zona', OLD.id_zona, 'descripcion', OLD.descripcion,
-            'fecha_inicio', OLD.fecha_inicio, 'fecha_fin', OLD.fecha_fin, 'id_estado_incidencia', OLD.id_estado_incidencia,
-            'id_nivel_impacto', OLD.id_nivel_impacto, 'radio_afectacion_km', OLD.radio_afectacion_km,
-            'id_usuario_reporta', OLD.id_usuario_reporta, 'id_geo', OLD.id_geo
-        ),
-        NULL, CURRENT_USER(), NOW()
+        OLD.id_tipo_incidencia,
+        OLD.id_zona,
+        CONCAT(OLD.descripcion, ' | ELIMINADA'),
+        OLD.fecha_inicio,
+        OLD.fecha_fin,
+        OLD.id_estado_incidencia,
+        OLD.id_nivel_impacto,
+        v_usuario_reporta_nombre,
+        v_geolocalizacion_text
     );
-END$$ 
+END $$
 DELIMITER ;
 
 -- -----------------------------------------------------

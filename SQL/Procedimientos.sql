@@ -596,6 +596,116 @@ BEGIN
 END $$
 DELIMITER ;
 
+-- Procedimiento para obtener todas las incidencias
+DELIMITER $$
+CREATE PROCEDURE incidenciasListar(
+    IN p_estado VARCHAR(50),
+    IN p_tipo VARCHAR(50),
+    IN p_impacto VARCHAR(50),
+    IN p_offset INT,
+    IN p_limite INT
+)
+BEGIN
+    DECLARE v_offset INT DEFAULT 0;
+    DECLARE v_limite INT DEFAULT 10;
+    DECLARE v_total INT DEFAULT 0;
+    DECLARE v_total_paginas INT DEFAULT 1;
+
+    IF p_offset IS NOT NULL AND p_offset >= 0 THEN
+        SET v_offset = p_offset;
+    END IF;
+
+    IF p_limite IS NOT NULL AND p_limite > 0 THEN
+        SET v_limite = LEAST(p_limite, 50);
+    END IF;
+
+    -- Contar total de registros
+    SELECT COUNT(*)
+    INTO v_total
+    FROM incidencias i
+    WHERE (p_estado IS NULL OR p_estado = '' OR 
+           (p_estado = 'activa' AND i.id_estado_incidencia = 1) OR
+           (p_estado = 'monitoreo' AND i.id_estado_incidencia = 2) OR
+           (p_estado = 'resuelta' AND i.id_estado_incidencia = 3))
+      AND (p_tipo IS NULL OR p_tipo = '' OR 
+           i.id_tipo_incidencia = p_tipo)
+      AND (p_impacto IS NULL OR p_impacto = '' OR 
+           i.id_nivel_impacto = p_impacto);
+
+    -- Calcular total de páginas
+    IF v_total = 0 THEN
+        SET v_total_paginas = 1;
+    ELSE
+        SET v_total_paginas = CEILING(v_total / v_limite);
+    END IF;
+
+    -- Obtener incidencias con información completa
+    SELECT 
+        i.id_incidencia,
+        i.id_tipo_incidencia,
+        i.id_zona,
+        i.descripcion,
+        i.fecha_inicio,
+        i.fecha_fin,
+        i.id_estado_incidencia,
+        i.id_nivel_impacto,
+        i.id_usuario_reporta,
+        i.fecha_creacion,
+        i.fecha_actualizacion,
+        i.radio_afectacion_km,
+        z.nombre_zona, 
+        ti.nombre_tipo, 
+        ei.nombre_estado,
+        ni.nombre_nivel, 
+        u.nombre as nombre_usuario
+    FROM incidencias i
+    JOIN zonas z ON i.id_zona = z.id_zona
+    JOIN tipos_incidencia ti ON i.id_tipo_incidencia = ti.id_tipo_incidencia
+    JOIN estados_incidencia ei ON i.id_estado_incidencia = ei.id_estado_incidencia
+    JOIN niveles_impacto ni ON i.id_nivel_impacto = ni.id_nivel_impacto
+    LEFT JOIN usuarios u ON i.id_usuario_reporta = u.id_usuario
+    WHERE (p_estado IS NULL OR p_estado = '' OR 
+           (p_estado = 'activa' AND i.id_estado_incidencia = 1) OR
+           (p_estado = 'monitoreo' AND i.id_estado_incidencia = 2) OR
+           (p_estado = 'resuelta' AND i.id_estado_incidencia = 3))
+      AND (p_tipo IS NULL OR p_tipo = '' OR 
+           i.id_tipo_incidencia = p_tipo)
+      AND (p_impacto IS NULL OR p_impacto = '' OR 
+           i.id_nivel_impacto = p_impacto)
+    ORDER BY i.fecha_inicio DESC, i.id_incidencia DESC
+    LIMIT v_limite OFFSET v_offset;
+
+    -- Retornar información de paginación
+    SELECT 
+        v_total AS total_registros,
+        v_total_paginas AS total_paginas,
+        v_limite AS limite,
+        v_offset AS offset_actual;
+END $$
+DELIMITER ;
+
+DELIMITER $$
+CREATE PROCEDURE incidenciaObtenerPorId(
+    IN p_id_incidencia INT
+)
+BEGIN
+    SELECT 
+        i.*, 
+        z.nombre_zona, 
+        ti.nombre_tipo, 
+        ei.nombre_estado,
+        ni.nombre_nivel, 
+        u.nombre as nombre_usuario
+    FROM incidencias i
+    JOIN zonas z ON i.id_zona = z.id_zona
+    JOIN tipos_incidencia ti ON i.id_tipo_incidencia = ti.id_tipo_incidencia
+    JOIN estados_incidencia ei ON i.id_estado_incidencia = ei.id_estado_incidencia
+    JOIN niveles_impacto ni ON i.id_nivel_impacto = ni.id_nivel_impacto
+    LEFT JOIN usuarios u ON i.id_usuario_reporta = u.id_usuario
+    WHERE i.id_incidencia = p_id_incidencia;
+END $$
+DELIMITER ;
+
 -- incidenciaRegistrar
 
 DROP PROCEDURE IF EXISTS incidenciaRegistrar;
@@ -612,6 +722,13 @@ CREATE PROCEDURE incidenciaRegistrar(
     IN p_observaciones TEXT
 )
 BEGIN
+    DECLARE v_fecha_fin DATETIME DEFAULT NULL;
+    
+    -- Validar y formatear fecha_fin
+    IF p_fecha_fin IS NOT NULL AND p_fecha_fin != '' THEN
+        SET v_fecha_fin = p_fecha_fin;
+    END IF;
+
     INSERT INTO incidencias(
         id_zona,
         id_tipo_incidencia,
@@ -620,17 +737,19 @@ BEGIN
         fecha_fin,
         id_estado_incidencia,
         id_nivel_impacto,
-        id_usuario_reporta
+        id_usuario_reporta,
+        observaciones
     )
     VALUES(
         p_id_zona,
         p_id_tipo_incidencia,
         p_descripcion,
         p_fecha_inicio,
-        p_fecha_fin,
+        v_fecha_fin,
         1, -- Estado: Activa
         p_id_nivel_impacto,
-        p_id_usuario_reporta
+        p_id_usuario_reporta,
+        p_observaciones
     );
 
     SELECT LAST_INSERT_ID() AS id_incidencia;
@@ -653,6 +772,29 @@ BEGIN
     WHERE id_incidencia = p_id_incidencia;
     
     SELECT 'Incidencia actualizada correctamente' AS mensaje;
+END $$
+DELIMITER ;
+
+DELIMITER $$
+CREATE PROCEDURE incidenciaEliminar(
+    IN p_id_incidencia INT
+)
+BEGIN
+    DECLARE incidencia_existe INT DEFAULT 0;
+    
+    -- Verificar si la incidencia existe
+    SELECT COUNT(*) INTO incidencia_existe 
+    FROM incidencias 
+    WHERE id_incidencia = p_id_incidencia;
+    
+    IF incidencia_existe = 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Incidencia no encontrada';
+    ELSE
+        -- Eliminar incidencia (el trigger se ejecutará automáticamente)
+        DELETE FROM incidencias WHERE id_incidencia = p_id_incidencia;
+        
+        SELECT 'Incidencia eliminada correctamente' AS mensaje;
+    END IF;
 END $$
 DELIMITER ;
 
@@ -1050,27 +1192,6 @@ BEGIN
     LEFT JOIN usuarios u ON e.id_repartidor = u.id_usuario
     JOIN direcciones_cliente dc ON p.id_direccion_entrega = dc.id_direccion
     WHERE e.id_entrega = p_id_entrega;
-END $$
-DELIMITER ;
-
--- Procedimiento para obtener todas las incidencias
-DELIMITER $$
-CREATE PROCEDURE incidenciasObtenerTodas()
-BEGIN
-    SELECT 
-        i.*, 
-        z.nombre_zona, 
-        ti.nombre_tipo, 
-        ei.nombre_estado,
-        ni.nombre_nivel, 
-        u.nombre as nombre_reporta
-    FROM incidencias i
-    JOIN zonas z ON i.id_zona = z.id_zona
-    JOIN tipos_incidencia ti ON i.id_tipo_incidencia = ti.id_tipo_incidencia
-    JOIN estados_incidencia ei ON i.id_estado_incidencia = ei.id_estado_incidencia
-    JOIN niveles_impacto ni ON i.id_nivel_impacto = ni.id_nivel_impacto
-    LEFT JOIN usuarios u ON i.id_usuario_reporta = u.id_usuario
-    ORDER BY i.fecha_inicio DESC;
 END $$
 DELIMITER ;
 
@@ -1542,6 +1663,8 @@ BEGIN
     END IF;
     
     COMMIT;
+END $$
+DELIMITER ;
 
     
 DELIMITER $$
