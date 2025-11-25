@@ -1,161 +1,62 @@
 #!/bin/bash
 
-# Script para configurar la base de datos
-# Ejecuta el dump general, procedimientos, triggers y vistas
-# LUM System - Logística Última Milla
-# Compatible con CentOS
-
-# No usar set -e aquí para permitir manejo manual de errores
-
-# Configuración de la base de datos
+# Variables para la base de datos
 DB_NAME="proyecto"
 DB_USER="proyecto_user"
-DB_PASS="666"
+DB_PASSWORD="666"
 DB_HOST="localhost"
 
-echo "=========================================="
-echo "🗄️  Configurando Base de Datos LUM"
-echo "=========================================="
+# Nombre del archivo de dump
+DUMP_FILE="backup.sql"
 
-# Cambiar al directorio del script
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR"
-
-# Verificar que MySQL/MariaDB está disponible
-if ! command -v mysql &> /dev/null; then
-    echo "❌ Error: mysql no está instalado o no está en el PATH"
-    echo ""
-    echo "   Para CentOS, instala MariaDB con:"
-    echo "   sudo yum install mariadb mariadb-server"
-    echo "   sudo systemctl start mariadb"
-    echo "   sudo systemctl enable mariadb"
+# Asegurarse de que el script sea ejecutado como root o con permisos de superusuario
+if [ "$(id -u)" -ne "0" ]; then
+    echo "Este script necesita ser ejecutado como root o con permisos de superusuario."
     exit 1
 fi
 
-echo "✅ Cliente MySQL/MariaDB encontrado"
+# Paso 1: Crear la base de datos y el usuario
+echo "Creando la base de datos '$DB_NAME' y el usuario '$DB_USER'..."
 
-# Verificar conexión a la base de datos
-echo "🔍 Verificando conexión a la base de datos..."
-export MYSQL_PWD="$DB_PASS"
-if ! mysql -h "$DB_HOST" -u "$DB_USER" -e "USE $DB_NAME;" 2>/dev/null; then
-    unset MYSQL_PWD
-    echo "⚠️  Advertencia: No se pudo conectar a la base de datos"
-    echo "   Verifica que:"
-    echo "   1. El servicio MySQL/MariaDB esté ejecutándose"
-    echo "   2. La base de datos '$DB_NAME' exista"
-    echo "   3. El usuario '$DB_USER' tenga permisos"
-    echo ""
-    echo "   Comandos útiles para CentOS:"
-    echo "   sudo systemctl status mariadb"
-    echo "   sudo systemctl start mariadb"
-    echo ""
-    read -p "¿Deseas continuar de todas formas? (s/N): " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Ss]$ ]]; then
-        unset MYSQL_PWD
-        exit 1
-    fi
-    unset MYSQL_PWD
+# Crear la base de datos
+mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS $DB_NAME;"
+
+# Crear el usuario y asignar permisos
+mysql -u root -p -e "CREATE USER IF NOT EXISTS '$DB_USER'@'$DB_HOST' IDENTIFIED BY '$DB_PASSWORD';"
+mysql -u root -p -e "GRANT ALL PRIVILEGES ON $DB_NAME.* TO '$DB_USER'@'$DB_HOST';"
+mysql -u root -p -e "FLUSH PRIVILEGES;"
+
+echo "Base de datos y usuario creados con éxito."
+
+# Paso 2: Crear un dump de la base de datos
+echo "Haciendo el dump de la base de datos '$DB_NAME' en el archivo '$DUMP_FILE'..."
+
+mysqldump -u "$DB_USER" -p"$DB_PASSWORD" "$DB_NAME" > "$DUMP_FILE"
+
+if [ $? -eq 0 ]; then
+    echo "Dump realizado con éxito."
 else
-    unset MYSQL_PWD
-    echo "✅ Conexión a la base de datos exitosa"
-fi
-
-# Función para ejecutar un archivo SQL
-execute_sql() {
-    local file=$1
-    local description=$2
-    
-    if [ ! -f "$file" ]; then
-        echo "❌ Error: No se encontró el archivo $file"
-        return 1
-    fi
-    
-    echo ""
-    echo "📄 Ejecutando: $description"
-    echo "   Archivo: $file"
-    
-    # Ejecutar con manejo de errores mejorado
-    # Usar MYSQL_PWD para evitar mostrar la contraseña en el historial
-    export MYSQL_PWD="$DB_PASS"
-    if mysql -h "$DB_HOST" -u "$DB_USER" "$DB_NAME" < "$file" 2>&1; then
-        unset MYSQL_PWD
-        echo "✅ $description ejecutado correctamente"
-        return 0
-    else
-        local exit_code=$?
-        unset MYSQL_PWD
-        echo "❌ Error al ejecutar $description (código: $exit_code)"
-        echo "   Revisa el archivo $file para más detalles"
-        return $exit_code
-    fi
-}
-
-# Contador de errores
-ERROR_COUNT=0
-
-# 1. Ejecutar dump general (estructura y datos)
-echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "1️⃣  Ejecutando Dump General..."
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-if ! execute_sql "DumpGeneral.sql" "Dump General de la Base de Datos"; then
-    ((ERROR_COUNT++))
-    echo "⚠️  Continuando con los siguientes pasos..."
-fi
-
-# 2. Ejecutar procedimientos almacenados
-echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "2️⃣  Ejecutando Procedimientos Almacenados..."
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-if ! execute_sql "SQL/Procedimientos.sql" "Procedimientos Almacenados"; then
-    ((ERROR_COUNT++))
-    echo "⚠️  Continuando con los siguientes pasos..."
-fi
-
-# 3. Ejecutar triggers
-echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "3️⃣  Ejecutando Triggers..."
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-if ! execute_sql "SQL/Triggers.sql" "Triggers de Auditoría"; then
-    ((ERROR_COUNT++))
-    echo "⚠️  Continuando con los siguientes pasos..."
-fi
-
-# 4. Ejecutar vistas
-echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "4️⃣  Ejecutando Vistas..."
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-if ! execute_sql "SQL/views.sql" "Vistas de la Base de Datos"; then
-    ((ERROR_COUNT++))
-fi
-
-# Resumen final
-echo ""
-echo "=========================================="
-if [ $ERROR_COUNT -eq 0 ]; then
-    echo "✅ Configuración de Base de Datos Completada"
-    echo "=========================================="
-    echo ""
-    echo "📊 Base de datos: $DB_NAME"
-    echo "👤 Usuario: $DB_USER"
-    echo "🔗 Host: $DB_HOST"
-    echo ""
-    echo "🎉 ¡Base de datos lista para usar!"
-    exit 0
-else
-    echo "⚠️  Configuración Completada con Errores"
-    echo "=========================================="
-    echo ""
-    echo "📊 Base de datos: $DB_NAME"
-    echo "👤 Usuario: $DB_USER"
-    echo "🔗 Host: $DB_HOST"
-    echo "❌ Errores encontrados: $ERROR_COUNT"
-    echo ""
-    echo "⚠️  Revisa los mensajes de error anteriores"
+    echo "Error al hacer el dump."
     exit 1
 fi
 
+# Paso 3: Instalar las dependencias de Python
+echo "Instalando las dependencias de Python desde requirements.txt..."
+
+if [ -f "requirements.txt" ]; then
+    pip install -r requirements.txt
+else
+    echo "No se encontró el archivo requirements.txt."
+    exit 1
+fi
+
+echo "Dependencias de Python instaladas correctamente."
+
+# Paso 4: Iniciar el servidor Flask (si quieres también puedes descomentar esto)
+# export FLASK_APP=app.py
+# flask run --host=0.0.0.0
+
+echo "Todo el proceso se completó con éxito."
+echo "Puede ejecutar el software con el siguiente comando: ./run.sh"
+
+exit 0
