@@ -287,7 +287,7 @@ class IncidenciasApp {
                         <button class="btn-action btn-edit" onclick="incidenciasApp.mostrarModalActualizar(${incidencia.id_incidencia})" title="Actualizar estado">
                             <i class="fas fa-edit"></i>
                         </button>
-                    ` : ''}
+                    ` : ''}         
                     ${this.puedeEliminar(incidencia) ? `
                         <button class="btn-action btn-delete" onclick="incidenciasApp.eliminarIncidencia(${incidencia.id_incidencia})" title="Eliminar incidencia">
                             <i class="fas fa-trash"></i>
