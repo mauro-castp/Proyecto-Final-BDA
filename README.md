@@ -158,7 +158,3 @@ http://localhost:5000/apidocs
 → Revisar que los archivos existan en la carpeta `SQL/`.
 
 ---
-
-## 👤 Contacto
-
-Autor: **Juan José Carmona**
