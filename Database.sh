@@ -5,9 +5,10 @@ DB_NAME="proyecto"
 DB_USER="proyecto_user"
 DB_PASSWORD="666"
 DB_HOST="localhost"
+MYSQL_ROOT_PASSWORD="tu_contraseña_de_root"  # Cambia esto a tu contraseña de root
 
 # Nombre del archivo de dump
-DUMP_FILE="backup.sql"
+DUMP_FILE="DumpGeneral.sql"
 
 # Archivos adicionales para triggers, procedimientos y vistas
 PROCEDURES_FILE="SQL/Procedimientos.sql"
@@ -23,25 +24,25 @@ fi
 # Paso 1: Crear la base de datos y el usuario
 echo "Creando la base de datos '$DB_NAME' y el usuario '$DB_USER'..."
 
-# Crear la base de datos
-mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS $DB_NAME;"
-
-# Crear el usuario y asignar permisos
-mysql -u root -p -e "CREATE USER IF NOT EXISTS '$DB_USER'@'$DB_HOST' IDENTIFIED BY '$DB_PASSWORD';"
-mysql -u root -p -e "GRANT ALL PRIVILEGES ON $DB_NAME.* TO '$DB_USER'@'$DB_HOST';"
-mysql -u root -p -e "FLUSH PRIVILEGES;"
+# Iniciar sesión en MySQL como root y ejecutar múltiples comandos
+mysql -u root -p$MYSQL_ROOT_PASSWORD <<EOF
+    CREATE DATABASE IF NOT EXISTS $DB_NAME;
+    CREATE USER IF NOT EXISTS '$DB_USER'@'$DB_HOST' IDENTIFIED BY '$DB_PASSWORD';
+    GRANT ALL PRIVILEGES ON $DB_NAME.* TO '$DB_USER'@'$DB_HOST';
+    FLUSH PRIVILEGES;
+EOF
 
 echo "Base de datos y usuario creados con éxito."
 
 # Paso 2: Restaurar el dump de la base de datos junto a los procedimientos, triggers y vistas
-echo "Haciendo el dump de la base de datos '$DB_NAME' en el archivo '$DUMP_FILE'..."
+echo "Restaurando el dump de la base de datos '$DB_NAME' desde el archivo '$DUMP_FILE'..."
 
 mysql -u "$DB_USER" -p"$DB_PASSWORD" "$DB_NAME" < "$DUMP_FILE"
 
 if [ $? -eq 0 ]; then
-    echo "Dump realizado con éxito."
+    echo "Dump restaurado con éxito."
 else
-    echo "Error al hacer el dump."
+    echo "Error al restaurar el dump."
     exit 1
 fi
 
