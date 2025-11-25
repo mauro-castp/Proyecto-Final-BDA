@@ -9,6 +9,11 @@ DB_HOST="localhost"
 # Nombre del archivo de dump
 DUMP_FILE="backup.sql"
 
+# Archivos adicionales para triggers, procedimientos y vistas
+PROCEDURES_FILE="SQL/Procedimientos.sql"
+TRIGGERS_FILE="SQL/Triggers.sql"
+VIEWS_FILE="SQL/views.sql"
+
 # Asegurarse de que el script sea ejecutado como root o con permisos de superusuario
 if [ "$(id -u)" -ne "0" ]; then
     echo "Este script necesita ser ejecutado como root o con permisos de superusuario."
@@ -28,16 +33,58 @@ mysql -u root -p -e "FLUSH PRIVILEGES;"
 
 echo "Base de datos y usuario creados con éxito."
 
-# Paso 2: Crear un dump de la base de datos
+# Paso 2: Restaurar el dump de la base de datos junto a los procedimientos, triggers y vistas
 echo "Haciendo el dump de la base de datos '$DB_NAME' en el archivo '$DUMP_FILE'..."
 
-mysqldump -u "$DB_USER" -p"$DB_PASSWORD" "$DB_NAME" > "$DUMP_FILE"
+mysql -u "$DB_USER" -p"$DB_PASSWORD" "$DB_NAME" < "$DUMP_FILE"
 
 if [ $? -eq 0 ]; then
     echo "Dump realizado con éxito."
 else
     echo "Error al hacer el dump."
     exit 1
+fi
+
+# Paso 2.1: Restaurar procedimientos almacenados
+if [ -f "$PROCEDURES_FILE" ]; then
+    echo "Restaurando procedimientos almacenados desde '$PROCEDURES_FILE'..."
+    mysql -u "$DB_USER" -p"$DB_PASSWORD" "$DB_NAME" < "$PROCEDURES_FILE"
+    if [ $? -eq 0 ]; then
+        echo "Procedimientos almacenados restaurados con éxito."
+    else
+        echo "Error al restaurar procedimientos almacenados."
+        exit 1
+    fi
+else
+    echo "No se encontró el archivo '$PROCEDURES_FILE'."
+fi
+
+# Paso 2.2: Restaurar triggers
+if [ -f "$TRIGGERS_FILE" ]; then
+    echo "Restaurando triggers desde '$TRIGGERS_FILE'..."
+    mysql -u "$DB_USER" -p"$DB_PASSWORD" "$DB_NAME" < "$TRIGGERS_FILE"
+    if [ $? -eq 0 ]; then
+        echo "Triggers restaurados con éxito."
+    else
+        echo "Error al restaurar triggers."
+        exit 1
+    fi
+else
+    echo "No se encontró el archivo '$TRIGGERS_FILE'."
+fi
+
+# Paso 2.3: Restaurar vistas
+if [ -f "$VIEWS_FILE" ]; then
+    echo "Restaurando vistas desde '$VIEWS_FILE'..."
+    mysql -u "$DB_USER" -p"$DB_PASSWORD" "$DB_NAME" < "$VIEWS_FILE"
+    if [ $? -eq 0 ]; then
+        echo "Vistas restauradas con éxito."
+    else
+        echo "Error al restaurar vistas."
+        exit 1
+    fi
+else
+    echo "No se encontró el archivo '$VIEWS_FILE'."
 fi
 
 # Paso 3: Instalar las dependencias de Python
@@ -53,7 +100,7 @@ fi
 echo "Dependencias de Python instaladas correctamente."
 
 # Paso 4: Iniciar el servidor Flask (si quieres también puedes descomentar esto)
-# export FLASK_APP=app.py
+# export FLASK_APP=app/app.py
 # flask run --host=0.0.0.0
 
 echo "Todo el proceso se completó con éxito."
