@@ -61,7 +61,10 @@ Dar permisos para ejecutar
 
 Ejecución del bash:
 1. sudo ./Database.sh
-2. Escribir Contraseña: 666
+
+Ejecutar el proyecto
+1. Darle permisos: chmod +x run.sh
+2. sudo ./run.sh
 
 ### 1. Clonar repositorio
 

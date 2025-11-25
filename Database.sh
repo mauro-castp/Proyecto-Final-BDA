@@ -5,7 +5,6 @@ DB_NAME="proyecto"
 DB_USER="proyecto_user"
 DB_PASSWORD="666"
 DB_HOST="localhost"
-MYSQL_ROOT_PASSWORD="tu_contraseña_de_root"  # Cambia esto a tu contraseña de root
 
 # Nombre del archivo de dump
 DUMP_FILE="DumpGeneral.sql"
@@ -15,34 +14,40 @@ PROCEDURES_FILE="SQL/Procedimientos.sql"
 TRIGGERS_FILE="SQL/Triggers.sql"
 VIEWS_FILE="SQL/views.sql"
 
-# Asegurarse de que el script sea ejecutado como root o con permisos de superusuario
-if [ "$(id -u)" -ne "0" ]; then
-    echo "Este script necesita ser ejecutado como root o con permisos de superusuario."
-    exit 1
-fi
-
 # Paso 1: Crear la base de datos y el usuario
 echo "Creando la base de datos '$DB_NAME' y el usuario '$DB_USER'..."
 
-# Iniciar sesión en MySQL como root y ejecutar múltiples comandos
-mysql -u root -p$MYSQL_ROOT_PASSWORD <<EOF
-    CREATE DATABASE IF NOT EXISTS $DB_NAME;
-    CREATE USER IF NOT EXISTS '$DB_USER'@'$DB_HOST' IDENTIFIED BY '$DB_PASSWORD';
-    GRANT ALL PRIVILEGES ON $DB_NAME.* TO '$DB_USER'@'$DB_HOST';
-    FLUSH PRIVILEGES;
-EOF
+# Eliminar la base de datos y usuario si existen
+sudo mysql -e "DROP DATABASE IF EXISTS $DB_NAME;"
+sudo mysql -e "DROP USER IF EXISTS '$DB_USER'@'$DB_HOST';"
 
-echo "Base de datos y usuario creados con éxito."
-
-# Paso 2: Restaurar el dump de la base de datos junto a los procedimientos, triggers y vistas
-echo "Restaurando el dump de la base de datos '$DB_NAME' desde el archivo '$DUMP_FILE'..."
-
-mysql -u "$DB_USER" -p"$DB_PASSWORD" "$DB_NAME" < "$DUMP_FILE"
+# Crear la base de datos y usuario
+sudo mysql -e "CREATE DATABASE $DB_NAME CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+sudo mysql -e "CREATE USER '$DB_USER'@'$DB_HOST' IDENTIFIED BY '$DB_PASSWORD';"
+sudo mysql -e "GRANT ALL PRIVILEGES ON $DB_NAME.* TO '$DB_USER'@'$DB_HOST';"
+sudo mysql -e "FLUSH PRIVILEGES;"
 
 if [ $? -eq 0 ]; then
-    echo "Dump restaurado con éxito."
+    echo "Base de datos y usuario creados con éxito."
 else
-    echo "Error al restaurar el dump."
+    echo "Error al crear la base de datos o el usuario."
+    exit 1
+fi
+
+# Paso 2: Restaurar el dump de la base de datos
+echo "Restaurando el dump de la base de datos '$DB_NAME' desde el archivo '$DUMP_FILE'..."
+
+if [ -f "$DUMP_FILE" ]; then
+    mysql -u "$DB_USER" -p"$DB_PASSWORD" "$DB_NAME" < "$DUMP_FILE"
+    
+    if [ $? -eq 0 ]; then
+        echo "Dump restaurado con éxito."
+    else
+        echo "Error al restaurar el dump."
+        exit 1
+    fi
+else
+    echo "No se encontró el archivo '$DUMP_FILE'."
     exit 1
 fi
 
@@ -92,7 +97,15 @@ fi
 echo "Instalando las dependencias de Python desde requirements.txt..."
 
 if [ -f "requirements.txt" ]; then
-    pip install -r requirements.txt
+    # Verificar si pip está disponible
+    if command -v pip3 &> /dev/null; then
+        pip3 install -r requirements.txt
+    elif command -v pip &> /dev/null; then
+        pip install -r requirements.txt
+    else
+        echo "Error: No se encontró pip o pip3 instalado en el sistema."
+        exit 1
+    fi
 else
     echo "No se encontró el archivo requirements.txt."
     exit 1
@@ -100,11 +113,7 @@ fi
 
 echo "Dependencias de Python instaladas correctamente."
 
-# Paso 4: Iniciar el servidor Flask (si quieres también puedes descomentar esto)
-# export FLASK_APP=app/app.py
-# flask run --host=0.0.0.0
-
 echo "Todo el proceso se completó con éxito."
-echo "Puede ejecutar el software con el siguiente comando: ./run.sh"
+echo "Puede ejecutar el software con el siguiente comando: sudo ./run.sh"
 
 exit 0
