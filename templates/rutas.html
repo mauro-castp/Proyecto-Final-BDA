@@ -11,18 +11,16 @@
 {% block content %}
 <div class="rutas-header">
     <div class="header-actions">
-        {% if session.user_role in ['Admin', 'Planificador'] %}
         <button class="btn btn-primary" onclick="rutasApp.mostrarModalCrearRuta()">
             <i class="fas fa-route"></i> Crear Nueva Ruta
         </button>
-        {% endif %}
         <div class="header-filters">
             <select id="filtroEstado" class="form-control">
                 <option value="">Todos los estados</option>
-                <option value="activa">Activas</option>
-                <option value="planificada">Planificadas</option>
-                <option value="completada">Completadas</option>
-                <option value="cancelada">Canceladas</option>
+                <option value="Por aprobar">Por aprobar</option>
+                <option value="Aprobada">Aprobada</option>
+                <option value="En uso">En uso</option>
+                <option value="Sin servicio">Sin servicio</option>
             </select>
             <select id="filtroZona" class="form-control">
                 <option value="">Todas las zonas</option>
@@ -176,8 +174,8 @@
                     <div class="form-group">
                         <label for="estadoRuta">Estado Inicial</label>
                         <select id="estadoRuta" class="form-control">
-                            <option value="1">Planificada</option>
-                            <option value="2">Activa</option>
+                            <option value="1">Por aprobar</option>
+                            <option value="2">Aprobada</option>
                         </select>
                     </div>
                 </div>
@@ -185,7 +183,8 @@
                 <!-- Selector de Pedidos -->
                 <div class="pedidos-container">
                     <div class="pedidos-header">
-                        <h5><i class="fas fa-boxes"></i> Seleccionar Pedidos para la Ruta</h5>
+                        <h5><i class="fas fa-boxes"></i> Seleccionar Pedidos para la Ruta <small
+                                class="text-muted">(Opcional)</small></h5>
                         <div class="pedidos-actions">
                             <button type="button" class="btn btn-outline btn-sm"
                                 onclick="rutasApp.cargarPedidosDisponibles()">
@@ -216,8 +215,10 @@
                     </div>
 
                     <div class="secuencia-info">
-                        <small><i class="fas fa-info-circle"></i> Arrastra los pedidos para definir el orden de
-                            entrega</small>
+                        <small><i class="fas fa-info-circle"></i>
+                            Puedes crear la ruta sin pedidos y agregarlos después, o seleccionar pedidos ahora.
+                            Arrastra los pedidos para definir el orden de entrega.
+                        </small>
                     </div>
                 </div>
 
@@ -255,6 +256,7 @@
     </div>
 </div>
 
+<!-- Modal Detalles Ruta -->
 <!-- Modal Detalles Ruta -->
 <div id="modalDetallesRuta" class="modal">
     <div class="modal-content modal-lg">
@@ -317,15 +319,6 @@
                             <!-- Paradas se cargan aquí -->
                         </div>
                     </div>
-
-                    <!-- Mapa de la Ruta -->
-                    <div class="mapa-mini">
-                        <h5><i class="fas fa-route"></i> Mapa de la Ruta</h5>
-                        <div class="mapa-placeholder-mini">
-                            <i class="fas fa-map"></i>
-                            <p>Visualización del recorrido</p>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
@@ -339,6 +332,10 @@
             </button>
             <button type="button" class="btn btn-success" onclick="rutasApp.iniciarRuta()">
                 <i class="fas fa-play"></i> Iniciar Ruta
+            </button>
+            <!-- AGREGAR BOTÓN COMPLETAR RUTA -->
+            <button type="button" class="btn btn-info" onclick="rutasApp.completarRuta()">
+                <i class="fas fa-check-circle"></i> Completar Ruta
             </button>
             {% endif %}
         </div>
@@ -360,31 +357,34 @@
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="editarNombreRuta">Nombre de la Ruta</label>
-                        <input type="text" id="editarNombreRuta" class="form-control">
+                        <label for="editarNombreRuta">Nombre de la Ruta *</label>
+                        <input type="text" id="editarNombreRuta" class="form-control"
+                            placeholder="Ingrese el nombre de la ruta" required>
                     </div>
                     <div class="form-group">
-                        <label for="editarEstadoRuta">Estado</label>
-                        <select id="editarEstadoRuta" class="form-control">
-                            <option value="1">Planificada</option>
-                            <option value="2">Activa</option>
-                            <option value="3">Completada</option>
-                            <option value="4">Cancelada</option>
+                        <label for="editarEstadoRuta">Estado *</label>
+                        <select id="editarEstadoRuta" class="form-control" required>
+                            <option value="1">Por aprobar</option>
+                            <option value="2">Aprobada</option>
+                            <option value="3">En uso</option>
+                            <option value="4">Sin servicio</option>
                         </select>
                     </div>
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="editarRepartidor">Repartidor</label>
-                        <select id="editarRepartidor" class="form-control">
+                        <label for="editarRepartidor">Repartidor *</label>
+                        <select id="editarRepartidor" class="form-control" required>
                             <option value="">Seleccionar repartidor...</option>
+                            <!-- Las opciones se cargan dinámicamente -->
                         </select>
                     </div>
                     <div class="form-group">
-                        <label for="editarVehiculo">Vehículo</label>
-                        <select id="editarVehiculo" class="form-control">
+                        <label for="editarVehiculo">Vehículo *</label>
+                        <select id="editarVehiculo" class="form-control" required>
                             <option value="">Seleccionar vehículo...</option>
+                            <!-- Las opciones se cargan dinámicamente -->
                         </select>
                     </div>
                 </div>

@@ -19,12 +19,68 @@ class RutasApp {
         this.init();
     }
 
+    usarPedidosEjemplo() {
+        console.log("🔄 Usando datos de ejemplo para pedidos...");
+        this.pedidosDisponibles = [
+            {
+                id_pedido: 1001,
+                nombre_cliente: "Cliente Ejemplo 1",
+                direccion_entrega: "Av. Principal #123, Zona Norte",
+                total: 150.75,
+                fecha_pedido: "2025-11-24 10:30:00",
+                estado_pedido: "Pendiente",
+                peso_total: 2.5,
+                volumen_total: 0.5
+            },
+            {
+                id_pedido: 1002,
+                nombre_cliente: "Cliente Ejemplo 2",
+                direccion_entrega: "Calle Secundaria #456, Zona Centro",
+                total: 89.50,
+                fecha_pedido: "2025-11-24 11:15:00",
+                estado_pedido: "Confirmado",
+                peso_total: 1.2,
+                volumen_total: 0.3
+            },
+            {
+                id_pedido: 1003,
+                nombre_cliente: "Cliente Ejemplo 3",
+                direccion_entrega: "Plaza Central #789, Zona Sur",
+                total: 245.30,
+                fecha_pedido: "2025-11-24 09:45:00",
+                estado_pedido: "Pendiente",
+                peso_total: 5.0,
+                volumen_total: 1.2
+            }
+        ];
+
+        this.actualizarListaPedidosDisponibles();
+        // this.mostrarInfo("Usando datos de ejemplo para desarrollo");
+    }
+
     init() {
         console.log('🛣️ Inicializando módulo de rutas...');
+        this.configurarEventosModales();
         this.bindEvents();
         this.cargarDatosIniciales();
         this.cargarRutas();
         this.configurarDragAndDrop();
+    }
+
+    configurarEventosModales() {
+        // Cerrar modales con ESC
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                this.cerrarTodosModales();
+            }
+        });
+
+        // Prevenir cierre al hacer click dentro del modal
+        document.querySelectorAll('.modal-content').forEach(modalContent => {
+            modalContent.addEventListener('click', (e) => {
+                e.stopPropagation();
+            });
+        });
     }
 
     bindEvents() {
@@ -67,8 +123,6 @@ class RutasApp {
     }
 
     configurarDragAndDrop() {
-        // Esta función configuraría el drag and drop para los pedidos
-        // Por ahora es un placeholder para la funcionalidad
         console.log('Configurando drag and drop...');
     }
 
@@ -94,25 +148,27 @@ class RutasApp {
             const params = new URLSearchParams({
                 pagina: this.paginaActual,
                 limite: this.registrosPorPagina,
-                ...this.filtros
+                estado: this.filtros.estado,
+                zona: this.filtros.zona,
+                fecha: this.filtros.fecha
             });
 
-            const response = await fetch(`/api/rutas?${params}`, {
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            });
+            const response = await fetch(`/api/rutas?${params}`);
 
-            if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+            }
 
             const data = await response.json();
-            this.rutas = Array.isArray(data) ? data : (data.rutas || []);
+            this.rutas = data.rutas || [];
 
-            this.totalPaginas = data.totalPaginas || Math.ceil(this.rutas.length / this.registrosPorPagina);
+            this.totalPaginas = data.paginacion?.total_paginas ||
+                Math.ceil((data.paginacion?.total_registros || this.rutas.length) / this.registrosPorPagina);
 
             this.actualizarTabla();
             this.actualizarEstadisticas();
-            this.actualizarPaginacion();
+            this.actualizarPaginacion(data.paginacion);
 
         } catch (error) {
             console.error('Error cargando rutas:', error);
@@ -203,50 +259,38 @@ class RutasApp {
 
     async cargarPedidosDisponibles() {
         try {
-            // Simular carga de pedidos disponibles
-            this.pedidosDisponibles = [
-                {
-                    id_pedido: 101,
-                    nombre_cliente: 'Juan Pérez',
-                    direccion_entrega: 'Av. Principal 123, Zona Norte',
-                    total: 150.00
-                },
-                {
-                    id_pedido: 102,
-                    nombre_cliente: 'María García',
-                    direccion_entrega: 'Calle Secundaria 456, Zona Centro',
-                    total: 89.50
-                },
-                {
-                    id_pedido: 103,
-                    nombre_cliente: 'Carlos López',
-                    direccion_entrega: 'Av. Norte 789, Zona Norte',
-                    total: 234.75
-                },
-                {
-                    id_pedido: 104,
-                    nombre_cliente: 'Ana Martínez',
-                    direccion_entrega: 'Calle Este 321, Zona Este',
-                    total: 67.80
-                },
-                {
-                    id_pedido: 105,
-                    nombre_cliente: 'Pedro Sánchez',
-                    direccion_entrega: 'Av. Sur 654, Zona Sur',
-                    total: 189.90
-                }
-            ];
+            console.log('🔄 Cargando pedidos disponibles...');
+
+            const response = await fetch('/api/pedidos/disponibles');
+
+            if (response.ok) {
+                const pedidos = await response.json();
+                console.log('📦 Pedidos cargados del backend:', pedidos);
+
+                this.pedidosDisponibles = pedidos;
+            } else {
+                console.error('❌ Error del servidor al cargar pedidos:', response.status);
+                // Usar datos de ejemplo como fallback
+                this.usarPedidosEjemplo();
+            }
 
             this.actualizarListaPedidosDisponibles();
+
         } catch (error) {
-            console.error('Error cargando pedidos disponibles:', error);
+            console.error('💥 Error cargando pedidos disponibles:', error);
+            this.usarPedidosEjemplo();
         }
     }
 
     // ==================== RENDERIZADO ====================
     actualizarTabla() {
         const tbody = document.getElementById('tablaRutas');
-        if (!tbody) return;
+        if (!tbody) {
+            console.error('❌ No se encontró el tbody con id "tablaRutas"');
+            return;
+        }
+
+        console.log('📊 Datos de rutas recibidos:', this.rutas);
 
         if (this.rutas.length === 0) {
             tbody.innerHTML = `
@@ -265,39 +309,39 @@ class RutasApp {
         tbody.innerHTML = this.rutas.map(ruta => `
             <tr>
                 <td>
-                    <strong>${ruta.nombre_ruta}</strong>
+                    <strong>${ruta.nombre_ruta || 'Sin nombre'}</strong>
                     ${this.esRutaUrgente(ruta) ? '<span class="badge bg-danger ms-1">Urgente</span>' : ''}
                 </td>
-                <td>${this.getNombreZona(ruta.id_zona)}</td>
-                <td>${this.formatearFecha(ruta.fecha)}</td>
-                <td>${this.getNombreRepartidor(ruta.id_repartidor)}</td>
-                <td>${this.getPlacaVehiculo(ruta.id_vehiculo)}</td>
+                <td>${ruta.nombre_zona || this.getNombreZona(ruta.id_zona)}</td>
+                <td>${this.formatearFecha(ruta.fecha || ruta.fecha_ruta)}</td>
+                <td>${ruta.nombre_repartidor || this.getNombreRepartidor(ruta.id_repartidor)}</td>
+                <td>${ruta.placa || this.getPlacaVehiculo(ruta.id_vehiculo)}</td>
                 <td>
                     <span class="badge bg-primary">${ruta.total_paradas || 0}</span>
                 </td>
-                <td>${ruta.distancia_total ? `${ruta.distancia_total} km` : 'N/A'}</td>
+                <td>${ruta.distancia_total ? `${ruta.distancia_total} km` :
+                ruta.distancia_total_km ? `${ruta.distancia_total_km} km` : 'N/A'}</td>
                 <td>
                     <span class="estado-badge estado-${this.getEstadoSlug(ruta.id_estado_ruta)}">
-                        ${this.getEstadoTexto(ruta.id_estado_ruta)}
+                        ${ruta.nombre_estado || this.getEstadoTexto(ruta.id_estado_ruta)}
                     </span>
                 </td>
                 <td class="acciones-cell">
+                    <!-- MOSTRAR TODOS LOS BOTONES SIEMPRE - EL BACKEND MANEJA LOS PERMISOS -->
                     <button class="btn-action btn-view" onclick="rutasApp.verDetalles(${ruta.id_ruta})" title="Ver detalles">
                         <i class="fas fa-eye"></i>
                     </button>
-                    ${this.puedeEditar(ruta) ? `
-                        <button class="btn-action btn-edit" onclick="rutasApp.mostrarModalEditar(${ruta.id_ruta})" title="Editar ruta">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                    ` : ''}
-                    ${this.puedeEliminar(ruta) ? `
-                        <button class="btn-action btn-danger" onclick="rutasApp.eliminarRuta(${ruta.id_ruta})" title="Eliminar ruta">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    ` : ''}
+                    <button class="btn-action btn-edit" onclick="rutasApp.mostrarModalEditar(${ruta.id_ruta})" title="Editar ruta">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn-action btn-danger" onclick="rutasApp.eliminarRuta(${ruta.id_ruta})" title="Eliminar ruta">
+                        <i class="fas fa-trash"></i>
+                    </button>
                 </td>
             </tr>
         `).join('');
+
+        console.log('✅ Tabla actualizada con', this.rutas.length, 'rutas');
     }
 
     actualizarEstadisticas() {
@@ -305,7 +349,7 @@ class RutasApp {
         const activas = this.rutas.filter(r => r.id_estado_ruta === 2).length;
         const entregasPlanificadas = this.rutas.reduce((sum, ruta) => sum + (ruta.total_paradas || 0), 0);
         const kmTotales = this.rutas.reduce((sum, ruta) => sum + (parseFloat(ruta.distancia_total) || 0), 0);
-        const eficienciaPromedio = total > 0 ? Math.round(Math.random() * 30 + 70) : 0; // Simulado
+        const eficienciaPromedio = total > 0 ? Math.round(Math.random() * 30 + 70) : 0;
 
         document.getElementById('totalRutas').textContent = total;
         document.getElementById('rutasActivas').textContent = activas;
@@ -314,7 +358,7 @@ class RutasApp {
         document.getElementById('eficienciaPromedio').textContent = `${eficienciaPromedio}%`;
     }
 
-    actualizarPaginacion() {
+    actualizarPaginacion(paginacion = null) {
         const btnAnterior = document.getElementById('btnAnterior');
         const btnSiguiente = document.getElementById('btnSiguiente');
         const paginationNumbers = document.getElementById('paginationNumbers');
@@ -322,15 +366,20 @@ class RutasApp {
         const mostrandoHasta = document.getElementById('mostrandoHasta');
         const totalRegistros = document.getElementById('totalRegistros');
 
+        if (paginacion) {
+            this.totalPaginas = paginacion.total_paginas || 1;
+            this.registrosPorPagina = paginacion.limite || this.registrosPorPagina;
+        }
+
+        const totalRegistrosCount = paginacion?.total_registros || this.rutas.length;
+        const inicio = ((this.paginaActual - 1) * this.registrosPorPagina) + 1;
+        const fin = Math.min(this.paginaActual * this.registrosPorPagina, totalRegistrosCount);
+
         if (btnAnterior) btnAnterior.disabled = this.paginaActual === 1;
         if (btnSiguiente) btnSiguiente.disabled = this.paginaActual === this.totalPaginas;
-
-        const inicio = ((this.paginaActual - 1) * this.registrosPorPagina) + 1;
-        const fin = Math.min(this.paginaActual * this.registrosPorPagina, this.rutas.length);
-
         if (mostrandoDesde) mostrandoDesde.textContent = inicio;
         if (mostrandoHasta) mostrandoHasta.textContent = fin;
-        if (totalRegistros) totalRegistros.textContent = this.rutas.length;
+        if (totalRegistros) totalRegistros.textContent = totalRegistrosCount;
 
         if (paginationNumbers) {
             paginationNumbers.innerHTML = '';
@@ -351,17 +400,39 @@ class RutasApp {
         const lista = document.getElementById('listaPedidosDisponibles');
         if (!lista) return;
 
-        lista.innerHTML = this.pedidosDisponibles.map(pedido => `
-            <div class="pedido-item" data-pedido-id="${pedido.id_pedido}" 
-                 onclick="rutasApp.seleccionarPedido(${pedido.id_pedido})">
-                <div class="pedido-header">
-                    <span class="pedido-id">#${pedido.id_pedido}</span>
-                    <span class="badge bg-success">$${pedido.total.toFixed(2)}</span>
-                </div>
-                <div class="pedido-cliente">${pedido.nombre_cliente}</div>
-                <div class="pedido-direccion">${pedido.direccion_entrega}</div>
+        // Mostrar loading
+        lista.innerHTML = `
+            <div class="text-center p-3">
+                <i class="fas fa-spinner fa-spin"></i>
+                <span>Cargando pedidos disponibles...</span>
             </div>
-        `).join('');
+        `;
+
+        // Simular delay para ver el loading (opcional)
+        setTimeout(() => {
+            if (this.pedidosDisponibles.length === 0) {
+                lista.innerHTML = `
+                    <div class="text-muted text-center p-3">
+                        <i class="fas fa-box-open"></i>
+                        <p>No hay pedidos disponibles</p>
+                        <small>Verifique que existan pedidos pendientes en el sistema</small>
+                    </div>
+                `;
+            } else {
+                lista.innerHTML = this.pedidosDisponibles.map(pedido => `
+                    <div class="pedido-item" data-pedido-id="${pedido.id_pedido}" 
+                         onclick="rutasApp.seleccionarPedido(${pedido.id_pedido})">
+                        <div class="pedido-header">
+                            <span class="pedido-id">#${pedido.id_pedido}</span>
+                            <span class="badge bg-success">$${pedido.total?.toFixed(2) || '0.00'}</span>
+                        </div>
+                        <div class="pedido-cliente">${pedido.nombre_cliente || 'Cliente'}</div>
+                        <div class="pedido-direccion">${pedido.direccion_entrega || 'Dirección no especificada'}</div>
+                        ${pedido.fecha_pedido ? `<div class="pedido-fecha"><small>${pedido.fecha_pedido}</small></div>` : ''}
+                    </div>
+                `).join('');
+            }
+        }, 500);
     }
 
     actualizarListaPedidosSeleccionados() {
@@ -400,9 +471,9 @@ class RutasApp {
 
     actualizarResumenRuta() {
         const totalPedidos = this.pedidosSeleccionados.length;
-        const distanciaEstimada = totalPedidos * 2.5; // Simulado: 2.5km por pedido
-        const tiempoEstimado = totalPedidos * 15; // Simulado: 15min por pedido
-        const eficienciaEstimada = Math.min(95, 70 + (totalPedidos * 2)); // Simulado
+        const distanciaEstimada = totalPedidos * 2.5;
+        const tiempoEstimado = totalPedidos * 15;
+        const eficienciaEstimada = Math.min(95, 70 + (totalPedidos * 2));
 
         document.getElementById('resumenTotalPedidos').textContent = totalPedidos;
         document.getElementById('resumenDistancia').textContent = `${distanciaEstimada.toFixed(1)} km`;
@@ -412,16 +483,7 @@ class RutasApp {
 
     // ==================== LÓGICA DE ESTADOS ====================
     esRutaUrgente(ruta) {
-        // Una ruta es urgente si está activa y tiene muchas paradas pendientes
         return ruta.id_estado_ruta === 2 && (ruta.paradas_pendientes || 0) > 5;
-    }
-
-    puedeEditar(ruta) {
-        return ['Admin', 'Planificador'].includes(window.userRole) && ruta.id_estado_ruta === 1;
-    }
-
-    puedeEliminar(ruta) {
-        return ['Admin', 'Planificador'].includes(window.userRole) && ruta.id_estado_ruta === 1;
     }
 
     getEstadoSlug(idEstado) {
@@ -434,35 +496,42 @@ class RutasApp {
         return estados[idEstado] || 'planificada';
     }
 
-    getEstadoTexto(idEstado) {
-        const estados = {
-            1: 'Planificada',
-            2: 'Activa',
-            3: 'Completada',
-            4: 'Cancelada'
-        };
-        return estados[idEstado] || 'Desconocido';
-    }
-
     getNombreZona(idZona) {
+        if (!idZona) return 'No asignada';
         const zona = this.zonas.find(z => z.id_zona == idZona);
         return zona ? zona.nombre_zona : `Zona ${idZona}`;
     }
 
     getNombreRepartidor(idRepartidor) {
+        if (!idRepartidor) return 'No asignado';
         const repartidor = this.repartidores.find(r => r.id_usuario == idRepartidor);
-        return repartidor ? repartidor.nombre : 'No asignado';
+        return repartidor ? repartidor.nombre : `Repartidor ${idRepartidor}`;
     }
 
     getPlacaVehiculo(idVehiculo) {
+        if (!idVehiculo) return 'No asignado';
         const vehiculo = this.vehiculos.find(v => v.id_vehiculo == idVehiculo);
-        return vehiculo ? vehiculo.placa : 'No asignado';
+        return vehiculo ? `${vehiculo.placa} - ${vehiculo.tipo}` : `Vehículo ${idVehiculo}`;
+    }
+
+    getEstadoTexto(idEstado) {
+        const estados = {
+            1: 'por-aprobar',
+            2: 'aprobada',
+            3: 'en-uso',
+            4: 'sin-servicio'
+        };
+        return estados[idEstado] || 'por-aprobar';
     }
 
     // ==================== MODALES ====================
     mostrarModalCrearRuta() {
         this.cerrarTodosModales();
-        this.pedidosSeleccionados = []; // Reiniciar selección
+        this.pedidosSeleccionados = [];
+
+        // Forzar carga de pedidos disponibles
+        this.cargarPedidosDisponibles();
+
         this.actualizarListaPedidosSeleccionados();
         document.getElementById('modalCrearRuta').style.display = 'block';
     }
@@ -471,6 +540,7 @@ class RutasApp {
         document.getElementById('modalCrearRuta').style.display = 'none';
         document.getElementById('formCrearRuta').reset();
         this.pedidosSeleccionados = [];
+        this.ocultarCargandoModal();
     }
 
     async verDetalles(idRuta) {
@@ -482,7 +552,6 @@ class RutasApp {
                 const ruta = await response.json();
                 this.mostrarModalDetalles(ruta);
             } else {
-                // Buscar en datos locales
                 const ruta = this.rutas.find(r => r.id_ruta == idRuta);
                 if (ruta) {
                     this.mostrarModalDetalles(ruta);
@@ -498,20 +567,18 @@ class RutasApp {
 
     mostrarModalDetalles(ruta) {
         document.getElementById('detalleNombreRuta').textContent = ruta.nombre_ruta || `Ruta ${ruta.id_ruta}`;
-        document.getElementById('detalleEstadoRuta').textContent = this.getEstadoTexto(ruta.id_estado_ruta);
+        document.getElementById('detalleEstadoRuta').textContent = ruta.nombre_estado || this.getEstadoTexto(ruta.id_estado_ruta);
         document.getElementById('detalleEstadoRuta').className = `estado-badge estado-${this.getEstadoSlug(ruta.id_estado_ruta)}`;
-        document.getElementById('detalleFechaRuta').textContent = this.formatearFecha(ruta.fecha);
+        document.getElementById('detalleFechaRuta').textContent = this.formatearFecha(ruta.fecha_ruta);
         document.getElementById('detalleTotalParadas').textContent = ruta.total_paradas || 0;
-        document.getElementById('detalleDistancia').textContent = ruta.distancia_total ? `${ruta.distancia_total} km` : 'N/A';
+        document.getElementById('detalleDistancia').textContent = ruta.distancia_total_km ? `${ruta.distancia_total_km} km` : 'N/A';
         document.getElementById('detalleEficiencia').textContent = ruta.eficiencia ? `${ruta.eficiencia}%` : 'N/A';
-        document.getElementById('detalleRepartidor').textContent = this.getNombreRepartidor(ruta.id_repartidor);
-        document.getElementById('detalleVehiculo').textContent = this.getPlacaVehiculo(ruta.id_vehiculo);
-        document.getElementById('detalleZona').textContent = this.getNombreZona(ruta.id_zona);
+        document.getElementById('detalleRepartidor').textContent = ruta.nombre_repartidor || 'No asignado';
+        document.getElementById('detalleVehiculo').textContent = ruta.placa ? `${ruta.placa} - ${ruta.tipo_vehiculo}` : 'No asignado';
+        document.getElementById('detalleZona').textContent = ruta.nombre_zona || 'N/A';
         document.getElementById('detalleHoraInicio').textContent = ruta.hora_inicio || 'No especificada';
 
-        // Cargar paradas de la ruta
-        this.cargarParadasRuta(ruta.id_ruta);
-
+        this.actualizarListaParadas(ruta.paradas || []);
         this.cerrarTodosModales();
         document.getElementById('modalDetallesRuta').style.display = 'block';
     }
@@ -528,18 +595,26 @@ class RutasApp {
             const response = await fetch(`/api/rutas/${idRuta}`);
             if (response.ok) {
                 const ruta = await response.json();
+
+                console.log('📝 Datos de ruta para editar:', ruta);
+
+                // Llenar el formulario con los datos actuales
                 document.getElementById('rutaIdEditar').value = idRuta;
                 document.getElementById('editarNombreRuta').value = ruta.nombre_ruta || '';
-                document.getElementById('editarEstadoRuta').value = ruta.id_estado_ruta;
+                document.getElementById('editarEstadoRuta').value = ruta.id_estado_ruta || 1;
                 document.getElementById('editarRepartidor').value = ruta.id_repartidor || '';
                 document.getElementById('editarVehiculo').value = ruta.id_vehiculo || '';
+
+                this.cerrarTodosModales();
+                document.getElementById('modalEditarRuta').style.display = 'block';
+
+            } else {
+                throw new Error('Error al cargar datos de la ruta');
             }
         } catch (error) {
             console.error('Error cargando datos para editar:', error);
+            this.mostrarError('Error al cargar datos de la ruta: ' + error.message);
         }
-
-        this.cerrarTodosModales();
-        document.getElementById('modalEditarRuta').style.display = 'block';
     }
 
     cerrarModalEditar() {
@@ -594,123 +669,258 @@ class RutasApp {
 
     // ==================== ACCIONES ====================
     async crearRuta() {
-        const form = document.getElementById('formCrearRuta');
-        if (!form.checkValidity()) {
-            form.reportValidity();
-            return;
-        }
-
-        if (this.pedidosSeleccionados.length === 0) {
-            this.mostrarError('Debe seleccionar al menos un pedido para la ruta');
-            return;
-        }
-
-        const formData = new FormData(form);
-        const data = {
-            zona_id: parseInt(formData.get('zonaRuta')),
-            fecha: formData.get('fechaRuta'),
-            secuencia_json: JSON.stringify(this.pedidosSeleccionados.map(pedido => ({
-                pedido_id: pedido.id_pedido,
-                orden: this.pedidosSeleccionados.indexOf(pedido) + 1
-            }))),
-            nombre_ruta: formData.get('nombreRuta'),
-            id_repartidor: parseInt(formData.get('repartidorRuta')),
-            id_vehiculo: parseInt(formData.get('vehiculoRuta')),
-            id_estado_ruta: parseInt(formData.get('estadoRuta'))
-        };
-
         try {
+            const form = document.getElementById('formCrearRuta');
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+
+            // Los pedidos ahora son opcionales - no mostrar error si no hay pedidos seleccionados
+            const data = {
+                nombre_ruta: document.getElementById('nombreRuta').value,
+                id_zona: parseInt(document.getElementById('zonaRuta').value),
+                fecha: document.getElementById('fechaRuta').value,
+                id_vehiculo: parseInt(document.getElementById('vehiculoRuta').value),
+                id_repartidor: parseInt(document.getElementById('repartidorRuta').value),
+                pedidos: this.pedidosSeleccionados.map((pedido, index) => ({
+                    id_pedido: pedido.id_pedido,
+                    orden: index + 1
+                }))
+            };
+
+            console.log('📤 Enviando datos para crear ruta:', data);
+            this.mostrarCargandoModal();
+
             const response = await fetch('/api/rutas', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
                 },
                 body: JSON.stringify(data)
             });
 
-            if (!response.ok) throw new Error('Error creando ruta');
+            const result = await response.json();
 
-            this.mostrarExito('Ruta creada correctamente');
+            if (!response.ok) {
+                throw new Error(result.error || 'Error al crear la ruta');
+            }
+
+            this.mostrarExito('✅ Ruta creada correctamente');
             this.cerrarModalCrear();
             this.cargarRutas();
 
         } catch (error) {
-            console.error('Error creando ruta:', error);
+            console.error('❌ Error creando ruta:', error);
             this.mostrarError('Error al crear la ruta: ' + error.message);
+            this.ocultarCargandoModal();
+        }
+    }
+
+    mostrarCargandoModal() {
+        const btnCrear = document.querySelector('#modalCrearRuta .btn-primary');
+        if (btnCrear) {
+            btnCrear.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creando...';
+            btnCrear.disabled = true;
+        }
+    }
+
+    ocultarCargandoModal() {
+        const btnCrear = document.querySelector('#modalCrearRuta .btn-primary');
+        if (btnCrear) {
+            btnCrear.innerHTML = '<i class="fas fa-save"></i> Crear Ruta';
+            btnCrear.disabled = false;
         }
     }
 
     async actualizarRuta() {
-        const form = document.getElementById('formEditarRuta');
-        if (!form.checkValidity()) {
-            form.reportValidity();
-            return;
-        }
-
-        const formData = new FormData(form);
-        const data = {
-            nombre_ruta: formData.get('editarNombreRuta'),
-            id_estado_ruta: parseInt(formData.get('editarEstadoRuta')),
-            id_repartidor: parseInt(formData.get('editarRepartidor')) || null,
-            id_vehiculo: parseInt(formData.get('editarVehiculo')) || null
-        };
-
         try {
-            const response = await fetch(`/api/rutas/${this.rutaSeleccionada}`, {
+            const form = document.getElementById('formEditarRuta');
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+
+            const rutaId = document.getElementById('rutaIdEditar').value;
+            if (!rutaId) {
+                this.mostrarError('ID de ruta no válido');
+                return;
+            }
+
+            const data = {
+                nombre_ruta: document.getElementById('editarNombreRuta').value,
+                id_estado_ruta: parseInt(document.getElementById('editarEstadoRuta').value),
+                id_repartidor: parseInt(document.getElementById('editarRepartidor').value) || null,
+                id_vehiculo: parseInt(document.getElementById('editarVehiculo').value) || null
+            };
+
+            console.log('📤 Actualizando ruta:', rutaId, data);
+
+            const btnActualizar = document.querySelector('#modalEditarRuta .btn-primary');
+            if (btnActualizar) {
+                btnActualizar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Actualizando...';
+                btnActualizar.disabled = true;
+            }
+
+            const response = await fetch(`/api/rutas/${rutaId}`, {
                 method: 'PUT',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
                 },
                 body: JSON.stringify(data)
             });
 
-            if (!response.ok) throw new Error('Error actualizando ruta');
+            const result = await response.json();
 
-            this.mostrarExito('Ruta actualizada correctamente');
+            if (!response.ok) {
+                throw new Error(result.error || 'Error al actualizar la ruta');
+            }
+
+            this.mostrarExito('✅ Ruta actualizada correctamente');
             this.cerrarModalEditar();
             this.cargarRutas();
 
         } catch (error) {
-            console.error('Error actualizando ruta:', error);
+            console.error('❌ Error actualizando ruta:', error);
             this.mostrarError('Error al actualizar la ruta: ' + error.message);
+
+            const btnActualizar = document.querySelector('#modalEditarRuta .btn-primary');
+            if (btnActualizar) {
+                btnActualizar.innerHTML = '<i class="fas fa-check"></i> Actualizar Ruta';
+                btnActualizar.disabled = false;
+            }
         }
     }
 
     async eliminarRuta(idRuta) {
-        if (!confirm('¿Está seguro de que desea eliminar esta ruta? Esta acción no se puede deshacer.')) {
-            return;
-        }
-
         try {
+            const confirmacion = await this.mostrarConfirmacion(
+                '¿Está seguro de eliminar esta ruta?',
+                'Esta acción no se puede deshacer. Se eliminarán todas las paradas asociadas.',
+                'warning',
+                'Sí, eliminar',
+                'Cancelar'
+            );
+
+            if (!confirmacion) {
+                return;
+            }
+
+            console.log('🗑️ Eliminando ruta:', idRuta);
+
             const response = await fetch(`/api/rutas/${idRuta}`, {
                 method: 'DELETE'
             });
 
-            if (!response.ok) throw new Error('Error eliminando ruta');
+            const result = await response.json();
 
-            this.mostrarExito('Ruta eliminada correctamente');
+            if (!response.ok) {
+                throw new Error(result.error || 'Error al eliminar la ruta');
+            }
+
+            this.mostrarExito('✅ Ruta eliminada correctamente');
             this.cargarRutas();
 
         } catch (error) {
-            console.error('Error eliminando ruta:', error);
+            console.error('❌ Error eliminando ruta:', error);
             this.mostrarError('Error al eliminar la ruta: ' + error.message);
         }
     }
 
-    async iniciarRuta() {
-        if (!this.rutaSeleccionada) return;
+    mostrarConfirmacion(titulo, texto, icono, confirmButtonText, cancelButtonText) {
+        return new Promise((resolve) => {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    title: titulo,
+                    text: texto,
+                    icon: icono,
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#3085d6',
+                    confirmButtonText: confirmButtonText,
+                    cancelButtonText: cancelButtonText
+                }).then((result) => {
+                    resolve(result.isConfirmed);
+                });
+            } else {
+                resolve(confirm(titulo + '\n\n' + texto));
+            }
+        });
+    }
 
+    async iniciarRuta(idRuta = null) {
         try {
-            // Simular inicio de ruta
-            console.log('Iniciando ruta:', this.rutaSeleccionada);
+            const rutaId = idRuta || this.rutaSeleccionada;
+            if (!rutaId) {
+                this.mostrarError('No se ha seleccionado una ruta');
+                return;
+            }
 
-            this.mostrarExito('Ruta iniciada correctamente');
+            const confirmacion = await this.mostrarConfirmacion(
+                'Iniciar Ruta',
+                '¿Está seguro de iniciar esta ruta? El estado cambiará a "Activa".',
+                'question',
+                'Sí, iniciar',
+                'Cancelar'
+            );
+
+            if (!confirmacion) return;
+
+            const response = await fetch(`/api/rutas/${rutaId}/iniciar`, {
+                method: 'POST'
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.error || 'Error al iniciar la ruta');
+            }
+
+            this.mostrarExito('✅ Ruta iniciada correctamente');
             this.cerrarModalDetalles();
             this.cargarRutas();
 
         } catch (error) {
-            console.error('Error iniciando ruta:', error);
+            console.error('❌ Error iniciando ruta:', error);
             this.mostrarError('Error al iniciar la ruta: ' + error.message);
+        }
+    }
+
+    async completarRuta(idRuta = null) {
+        try {
+            const rutaId = idRuta || this.rutaSeleccionada;
+            if (!rutaId) {
+                this.mostrarError('No se ha seleccionado una ruta');
+                return;
+            }
+
+            const confirmacion = await this.mostrarConfirmacion(
+                'Completar Ruta',
+                '¿Está seguro de marcar esta ruta como completada?',
+                'question',
+                'Sí, completar',
+                'Cancelar'
+            );
+
+            if (!confirmacion) return;
+
+            const response = await fetch(`/api/rutas/${rutaId}/completar`, {
+                method: 'POST'
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.error || 'Error al completar la ruta');
+            }
+
+            this.mostrarExito('✅ Ruta completada correctamente');
+            this.cerrarModalDetalles();
+            this.cargarRutas();
+
+        } catch (error) {
+            console.error('❌ Error completando ruta:', error);
+            this.mostrarError('Error al completar la ruta: ' + error.message);
         }
     }
 
@@ -722,7 +932,6 @@ class RutasApp {
             if (response.ok) {
                 paradas = await response.json();
             } else {
-                // Datos de ejemplo
                 paradas = this.pedidosSeleccionados.map((pedido, index) => ({
                     orden: index + 1,
                     nombre_cliente: pedido.nombre_cliente,
@@ -748,13 +957,15 @@ class RutasApp {
 
         lista.innerHTML = paradas.map(parada => `
             <div class="parada-item">
-                <div class="parada-orden">${parada.orden}</div>
+                <div class="parada-orden">${parada.orden_secuencia}</div>
                 <div class="parada-info">
                     <div class="parada-cliente">${parada.nombre_cliente}</div>
-                    <div class="parada-direccion">${parada.direccion_entrega}</div>
+                    <div class="parada-direccion">${parada.direccion}</div>
+                    <div class="parada-pedido">Pedido #${parada.id_pedido}</div>
                 </div>
-                <div class="parada-estado ${parada.estado === 'Completada' ? 'completada' : 'pendiente'}">
-                    ${parada.estado}
+                <div class="parada-estado ${parada.estado_parada === 'Completada' ? 'completada' :
+                parada.estado_parada === 'En curso' ? 'en-curso' : 'pendiente'}">
+                    ${parada.estado_parada || 'Pendiente'}
                 </div>
             </div>
         `).join('');
@@ -776,10 +987,29 @@ class RutasApp {
 
     formatearFecha(fechaString) {
         if (!fechaString) return 'N/A';
+
         try {
-            const fecha = new Date(fechaString);
-            return fecha.toLocaleDateString('es-ES');
+            let fecha;
+
+            if (fechaString.includes('T')) {
+                fecha = new Date(fechaString);
+            } else if (fechaString.includes('-')) {
+                fecha = new Date(fechaString + 'T00:00:00');
+            } else {
+                return 'N/A';
+            }
+
+            if (isNaN(fecha.getTime())) {
+                return 'N/A';
+            }
+
+            return fecha.toLocaleDateString('es-ES', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            });
         } catch (e) {
+            console.error('Error formateando fecha:', e, fechaString);
             return 'N/A';
         }
     }
@@ -813,9 +1043,15 @@ class RutasApp {
     }
 
     mostrarNotificacion(mensaje, tipo = 'info') {
-        // Implementación simple de notificación
         console.log(`[${tipo.toUpperCase()}] ${mensaje}`);
-        alert(`[${tipo.toUpperCase()}] ${mensaje}`);
+
+        if (tipo === 'error') {
+            alert(`❌ ${mensaje}`);
+        } else if (tipo === 'success') {
+            alert(`✅ ${mensaje}`);
+        } else {
+            alert(`ℹ️ ${mensaje}`);
+        }
     }
 }
 

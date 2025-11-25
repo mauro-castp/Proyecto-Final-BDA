@@ -389,6 +389,7 @@ DELIMITER ;
 
 DELIMITER $$
 CREATE PROCEDURE rutaCrear(
+    IN p_nombre_ruta VARCHAR(100),
     IN p_id_zona INT,
     IN p_fecha DATE,
     IN p_id_vehiculo INT,
@@ -400,29 +401,43 @@ BEGIN
     DECLARE v_len INT;
     DECLARE v_i INT DEFAULT 0;
     DECLARE v_id_pedido INT;
+    DECLARE v_orden INT;
+    DECLARE v_costo_estimado DECIMAL(10,2) DEFAULT 0.00;
 
+    -- Calcular costo estimado basado en la cantidad de pedidos
+    SET v_costo_estimado = JSON_LENGTH(p_secuencia) * 5.00;
+
+    -- Insertar ruta
     INSERT INTO rutas(
         nombre_ruta,
         id_zona,
         fecha_ruta,
         id_vehiculo,
         id_repartidor,
-        id_estado_ruta
+        id_estado_ruta,
+        costo,
+        distancia_total_km,
+        tiempo_estimado_minutos
     )
     VALUES(
-        CONCAT('Ruta ', NOW()),
+        COALESCE(p_nombre_ruta, CONCAT('Ruta ', DATE_FORMAT(NOW(), '%Y%m%d-%H%i'))),
         p_id_zona,
         p_fecha,
         p_id_vehiculo,
         p_id_repartidor,
-        1
+        1, -- Estado: Planificada
+        v_costo_estimado,
+        JSON_LENGTH(p_secuencia) * 2.5,
+        JSON_LENGTH(p_secuencia) * 15
     );
 
     SET v_ruta_id = LAST_INSERT_ID();
     SET v_len = JSON_LENGTH(p_secuencia);
 
     WHILE v_i < v_len DO
-        SET v_id_pedido = JSON_EXTRACT(p_secuencia, CONCAT('$[', v_i, ']'));
+        -- EXTRAER CORRECTAMENTE del objeto JSON
+        SET v_id_pedido = JSON_UNQUOTE(JSON_EXTRACT(p_secuencia, CONCAT('$[', v_i, '].id_pedido')));
+        SET v_orden = JSON_UNQUOTE(JSON_EXTRACT(p_secuencia, CONCAT('$[', v_i, '].orden')));
 
         INSERT INTO paradas_ruta(
             id_ruta,
@@ -433,14 +448,293 @@ BEGIN
         VALUES(
             v_ruta_id,
             v_id_pedido,
-            v_i + 1,
-            1
+            COALESCE(v_orden, v_i + 1), -- Usar el orden proporcionado o secuencial
+            1 -- Estado: Pendiente
         );
 
         SET v_i = v_i + 1;
     END WHILE;
 
     SELECT v_ruta_id AS id_ruta;
+END $$
+DELIMITER ;
+
+-- Procedimiento para obtener todas las rutas
+DELIMITER $$
+
+DROP PROCEDURE IF EXISTS rutasListar$$
+
+CREATE PROCEDURE rutasListar(
+    IN p_estado VARCHAR(50),
+    IN p_zona VARCHAR(50),
+    IN p_fecha VARCHAR(50),
+    IN p_offset INT,
+    IN p_limite INT
+)
+BEGIN
+    DECLARE v_offset INT DEFAULT 0;
+    DECLARE v_limite INT DEFAULT 10;
+    DECLARE v_total INT DEFAULT 0;
+    DECLARE v_total_paginas INT DEFAULT 1;
+
+    -- Configuración de paginación (igual que antes)
+    IF p_offset IS NOT NULL AND p_offset >= 0 THEN
+        SET v_offset = p_offset;
+    END IF;
+
+    IF p_limite IS NOT NULL AND p_limite > 0 THEN
+        SET v_limite = LEAST(p_limite, 50);
+    END IF;
+
+    -- Contar total
+    SELECT COUNT(*)
+    INTO v_total
+    FROM rutas r
+    WHERE (p_estado = '' OR r.id_estado_ruta = CAST(p_estado AS UNSIGNED))
+      AND (p_zona = '' OR r.id_zona = CAST(p_zona AS UNSIGNED))
+      AND (p_fecha = '' OR DATE(r.fecha_ruta) = p_fecha OR p_fecha = '');
+
+    -- Calcular páginas
+    IF v_total = 0 THEN
+        SET v_total_paginas = 1;
+    ELSE
+        SET v_total_paginas = CEILING(v_total / v_limite);
+    END IF;
+
+    -- Obtener rutas CORREGIDO:
+    SELECT 
+        r.id_ruta,
+        r.nombre_ruta,
+        r.id_zona,
+        r.fecha_ruta as fecha,
+        r.id_repartidor,
+        r.id_vehiculo,
+        r.id_estado_ruta,
+        r.distancia_total_km as distancia_total,
+        r.tiempo_estimado_minutos,
+        r.costo,
+        r.fecha_creacion,
+        r.fecha_actualizacion,
+        z.nombre_zona, 
+        -- CORRECCIÓN: Usar alias explícito y verificar que sea el repartidor
+        COALESCE(rep.nombre, 'No asignado') as nombre_repartidor,
+        COALESCE(v.placa, 'No asignado') as placa,
+        COALESCE(tv.nombre, 'N/A') as tipo_vehiculo,
+        COALESCE(ev.nombre_estado, 'N/A') as estado_vehiculo,
+        er.nombre_estado,
+        (SELECT COUNT(*) FROM paradas_ruta pr WHERE pr.id_ruta = r.id_ruta) as total_paradas
+    FROM rutas r
+    JOIN zonas z ON r.id_zona = z.id_zona
+    LEFT JOIN usuarios rep ON r.id_repartidor = rep.id_usuario  -- ← Alias 'rep' para repartidor
+    LEFT JOIN vehiculos v ON r.id_vehiculo = v.id_vehiculo
+    LEFT JOIN tipos_vehiculo tv ON v.id_tipo_vehiculo = tv.id_tipo_vehiculo
+    LEFT JOIN estados_vehiculo ev ON v.id_estado_vehiculo = ev.id_estado_vehiculo
+    JOIN estados_ruta er ON r.id_estado_ruta = er.id_estado_ruta
+    WHERE (p_estado = '' OR r.id_estado_ruta = CAST(p_estado AS UNSIGNED))
+      AND (p_zona = '' OR r.id_zona = CAST(p_zona AS UNSIGNED))
+      AND (p_fecha = '' OR DATE(r.fecha_ruta) = p_fecha OR p_fecha = '')
+    ORDER BY r.fecha_ruta DESC, r.id_ruta DESC
+    LIMIT v_limite OFFSET v_offset;
+
+    -- Información de paginación
+    SELECT 
+        v_total AS total_registros,
+        v_total_paginas AS total_paginas,
+        v_limite AS limite,
+        v_offset AS offset_actual;
+END $$
+
+DELIMITER ;
+
+-- Procedimiento para obtener una ruta específica por ID con sus paradas
+DELIMITER $$
+DROP PROCEDURE IF EXISTS rutaObtenerPorId$$
+CREATE PROCEDURE rutaObtenerPorId(
+    IN p_id_ruta INT
+)
+BEGIN
+    -- Obtener información básica de la ruta (CORREGIDO)
+    SELECT 
+        r.*, 
+        z.nombre_zona, 
+        rep.nombre as nombre_repartidor,  -- ← Alias 'rep'
+        v.placa,
+        tv.nombre as tipo_vehiculo,
+        er.nombre_estado,
+        (SELECT COUNT(*) FROM paradas_ruta pr WHERE pr.id_ruta = r.id_ruta) as total_paradas
+    FROM rutas r
+    JOIN zonas z ON r.id_zona = z.id_zona
+    LEFT JOIN usuarios rep ON r.id_repartidor = rep.id_usuario  -- ← Alias 'rep'
+    LEFT JOIN vehiculos v ON r.id_vehiculo = v.id_vehiculo
+    LEFT JOIN tipos_vehiculo tv ON v.id_tipo_vehiculo = tv.id_tipo_vehiculo
+    JOIN estados_ruta er ON r.id_estado_ruta = er.id_estado_ruta
+    WHERE r.id_ruta = p_id_ruta;
+    
+    -- Obtener las paradas de la ruta (sin cambios)
+    SELECT 
+        pr.*, 
+        p.id_pedido, 
+        c.nombre as nombre_cliente,
+        dc.direccion,
+        ep.nombre_estado as estado_parada
+    FROM paradas_ruta pr
+    JOIN pedidos p ON pr.id_pedido = p.id_pedido
+    JOIN clientes c ON p.id_cliente = c.id_cliente
+    JOIN direcciones_cliente dc ON p.id_direccion_entrega = dc.id_direccion
+    JOIN estados_parada ep ON pr.id_estado_parada = ep.id_estado_parada
+    WHERE pr.id_ruta = p_id_ruta
+    ORDER BY pr.orden_secuencia;
+END $$
+DELIMITER ;
+
+-- Procedimiento para actualizar ruta (sin auditoría manual)
+DELIMITER $$
+CREATE PROCEDURE rutaActualizar(
+    IN p_id_ruta INT,
+    IN p_nombre_ruta VARCHAR(100),
+    IN p_id_estado_ruta INT,
+    IN p_id_repartidor INT,
+    IN p_id_vehiculo INT
+)
+BEGIN
+    DECLARE v_ruta_existe INT DEFAULT 0;
+    DECLARE v_mensaje VARCHAR(255);
+
+    -- Verificar que la ruta existe
+    SELECT COUNT(*) INTO v_ruta_existe
+    FROM rutas 
+    WHERE id_ruta = p_id_ruta;
+
+    IF v_ruta_existe = 0 THEN
+        SET v_mensaje = 'Ruta no encontrada';
+        SELECT v_mensaje AS mensaje;
+    ELSE
+        -- Actualizar ruta
+        UPDATE rutas 
+        SET 
+            nombre_ruta = COALESCE(p_nombre_ruta, nombre_ruta),
+            id_estado_ruta = COALESCE(p_id_estado_ruta, id_estado_ruta),
+            id_repartidor = COALESCE(p_id_repartidor, id_repartidor),
+            id_vehiculo = COALESCE(p_id_vehiculo, id_vehiculo),
+            fecha_actualizacion = NOW()
+        WHERE id_ruta = p_id_ruta;
+
+        -- Verificar si se actualizó correctamente
+        IF ROW_COUNT() > 0 THEN
+            SET v_mensaje = 'Ruta actualizada correctamente';
+        ELSE
+            SET v_mensaje = 'No se realizaron cambios en la ruta';
+        END IF;
+
+        SELECT v_mensaje AS mensaje;
+    END IF;
+END $$
+DELIMITER ;
+
+-- Procedimiento para eliminar ruta (sin auditoría manual)
+DELIMITER $$
+CREATE PROCEDURE rutaEliminar(
+    IN p_id_ruta INT
+)
+BEGIN
+    DECLARE v_estado_actual INT;
+    DECLARE v_tiene_dependencias INT DEFAULT 0;
+
+    -- Obtener estado actual
+    SELECT id_estado_ruta INTO v_estado_actual
+    FROM rutas 
+    WHERE id_ruta = p_id_ruta;
+
+    -- Verificar que la ruta existe
+    IF v_estado_actual IS NULL THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Ruta no encontrada';
+    END IF;
+
+    -- Verificar que no esté en estado activa/en uso (estado 3)
+    IF v_estado_actual = 3 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'No se puede eliminar una ruta en uso';
+    END IF;
+
+    -- Verificar dependencias en costos_operativos
+    SELECT COUNT(*) INTO v_tiene_dependencias
+    FROM costos_operativos 
+    WHERE id_ruta = p_id_ruta;
+
+    IF v_tiene_dependencias > 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'No se puede eliminar: la ruta tiene costos operativos asociados';
+    END IF;
+
+    -- Eliminar paradas primero
+    DELETE FROM paradas_ruta WHERE id_ruta = p_id_ruta;
+    
+    -- Eliminar ruta
+    DELETE FROM rutas WHERE id_ruta = p_id_ruta;
+
+    SELECT 'Ruta eliminada correctamente' AS mensaje;
+END $$
+DELIMITER ;
+
+-- Procedimiento para iniciar ruta
+DELIMITER $$
+CREATE PROCEDURE rutaIniciar(
+    IN p_id_ruta INT
+)
+BEGIN
+    DECLARE v_estado_actual INT;
+
+    -- Obtener estado actual
+    SELECT id_estado_ruta INTO v_estado_actual
+    FROM rutas 
+    WHERE id_ruta = p_id_ruta;
+
+    -- Verificar que la ruta existe
+    IF v_estado_actual IS NULL THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Ruta no encontrada';
+    END IF;
+
+    -- Verificar que esté en estado planificada
+    IF v_estado_actual != 1 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Solo se pueden iniciar rutas planificadas';
+    END IF;
+
+    -- Actualizar estado a activa (el trigger manejará la auditoría)
+    UPDATE rutas 
+    SET id_estado_ruta = 2, fecha_actualizacion = NOW()
+    WHERE id_ruta = p_id_ruta;
+
+    SELECT 'Ruta iniciada correctamente' AS mensaje;
+END $$
+DELIMITER ;
+
+-- Procedimiento para completar ruta
+DELIMITER $$
+CREATE PROCEDURE rutaCompletar(
+    IN p_id_ruta INT
+)
+BEGIN
+    DECLARE v_estado_actual INT;
+
+    -- Obtener estado actual
+    SELECT id_estado_ruta INTO v_estado_actual
+    FROM rutas 
+    WHERE id_ruta = p_id_ruta;
+
+    -- Verificar que la ruta existe
+    IF v_estado_actual IS NULL THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Ruta no encontrada';
+    END IF;
+
+    -- Verificar que esté en estado activa
+    IF v_estado_actual != 2 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Solo se pueden completar rutas activas';
+    END IF;
+
+    -- Actualizar estado a completada (el trigger manejará la auditoría)
+    UPDATE rutas 
+    SET id_estado_ruta = 3, fecha_actualizacion = NOW()
+    WHERE id_ruta = p_id_ruta;
+
+    SELECT 'Ruta completada correctamente' AS mensaje;
 END $$
 DELIMITER ;
 
@@ -1192,60 +1486,6 @@ BEGIN
     LEFT JOIN usuarios u ON e.id_repartidor = u.id_usuario
     JOIN direcciones_cliente dc ON p.id_direccion_entrega = dc.id_direccion
     WHERE e.id_entrega = p_id_entrega;
-END $$
-DELIMITER ;
-
--- Procedimiento para obtener todas las rutas
-DELIMITER $$
-CREATE PROCEDURE rutasObtenerTodas()
-BEGIN
-    SELECT 
-        r.*, 
-        z.nombre_zona, 
-        u.nombre as nombre_repartidor,
-        v.placa, 
-        er.nombre_estado
-    FROM rutas r
-    JOIN zonas z ON r.id_zona = z.id_zona
-    LEFT JOIN usuarios u ON r.id_repartidor = u.id_usuario
-    LEFT JOIN vehiculos v ON r.id_vehiculo = v.id_vehiculo
-    JOIN estados_ruta er ON r.id_estado_ruta = er.id_estado_ruta
-    ORDER BY r.fecha_ruta DESC, r.id_ruta DESC;
-END $$
-DELIMITER ;
-
--- Procedimiento para obtener una ruta específica por ID con sus paradas
-DELIMITER $$
-CREATE PROCEDURE rutaObtenerPorId(
-    IN p_id_ruta INT
-)
-BEGIN
-    -- Obtener información básica de la ruta
-    SELECT 
-        r.*, 
-        z.nombre_zona, 
-        u.nombre as nombre_repartidor,
-        v.placa, 
-        er.nombre_estado
-    FROM rutas r
-    JOIN zonas z ON r.id_zona = z.id_zona
-    LEFT JOIN usuarios u ON r.id_repartidor = u.id_usuario
-    LEFT JOIN vehiculos v ON r.id_vehiculo = v.id_vehiculo
-    JOIN estados_ruta er ON r.id_estado_ruta = er.id_estado_ruta
-    WHERE r.id_ruta = p_id_ruta;
-    
-    -- Obtener las paradas de la ruta
-    SELECT 
-        pr.*, 
-        p.id_pedido, 
-        c.nombre as nombre_cliente,
-        dc.direccion
-    FROM paradas_ruta pr
-    JOIN pedidos p ON pr.id_pedido = p.id_pedido
-    JOIN clientes c ON p.id_cliente = c.id_cliente
-    JOIN direcciones_cliente dc ON p.id_direccion_entrega = dc.id_direccion
-    WHERE pr.id_ruta = p_id_ruta
-    ORDER BY pr.orden_secuencia;
 END $$
 DELIMITER ;
 

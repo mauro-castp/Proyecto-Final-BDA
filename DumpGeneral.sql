@@ -146,13 +146,15 @@ DROP TABLE IF EXISTS `aud_rutas`;
 /*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `aud_rutas` (
   `id_log` int(11) NOT NULL AUTO_INCREMENT,
-  `id_ruta` int(11) DEFAULT NULL,
-  `valores_anteriores` longtext CHARACTER SET utf8mb4  DEFAULT NULL CHECK (json_valid(`valores_anteriores`)),
-  `valores_nuevos` longtext CHARACTER SET utf8mb4  DEFAULT NULL CHECK (json_valid(`valores_nuevos`)),
-  `usuario` varchar(100) DEFAULT NULL,
+  `id_ruta` int(11) NOT NULL,
+  `nombre_ruta` varchar(100) NOT NULL,
+  `id_zona` int(11) NOT NULL,
+  `costo` decimal(10,2) DEFAULT 0.00,
+  `usuario` varchar(100) NOT NULL,
+  `accion` varchar(50) NOT NULL,
   `fecha` timestamp NULL DEFAULT current_timestamp(),
   PRIMARY KEY (`id_log`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
