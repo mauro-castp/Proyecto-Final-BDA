@@ -1699,3 +1699,288 @@ BEGIN
     SELECT v_nombre AS nombre_usuario;
 END $$
 DELIMITER ;
+
+-- Procedimiento para eliminar entrega (solo si está pendiente y sin relaciones)
+-- Procedimiento para eliminar entrega
+DELIMITER $$
+CREATE PROCEDURE entregaEliminar(
+    IN p_id_entrega INT,
+    IN p_usuario_sistema VARCHAR(100)
+)
+BEGIN
+    DECLARE v_estado_actual INT;
+    DECLARE v_tiene_evidencias INT DEFAULT 0;
+    DECLARE v_tiene_penalizaciones INT DEFAULT 0;
+    DECLARE v_tiene_otp INT DEFAULT 0;
+    
+    -- Verificar si la entrega existe y obtener su estado
+    SELECT id_estado_entrega INTO v_estado_actual
+    FROM entregas 
+    WHERE id_entrega = p_id_entrega;
+    
+    IF v_estado_actual IS NULL THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Entrega no encontrada';
+    END IF;
+    
+    -- Verificar si tiene evidencias relacionadas
+    SELECT COUNT(*) INTO v_tiene_evidencias
+    FROM evidencias 
+    WHERE id_entrega = p_id_entrega;
+    
+    -- Verificar si tiene penalizaciones relacionadas
+    SELECT COUNT(*) INTO v_tiene_penalizaciones
+    FROM penalizaciones 
+    WHERE id_entrega = p_id_entrega;
+    
+    -- Verificar si tiene OTPs relacionados
+    SELECT COUNT(*) INTO v_tiene_otp
+    FROM otp 
+    WHERE id_entrega = p_id_entrega;
+    
+    -- Solo permitir eliminar entregas en estado pendiente (1) y sin relaciones
+    IF v_estado_actual = 1 AND v_tiene_evidencias = 0 AND v_tiene_penalizaciones = 0 AND v_tiene_otp = 0 THEN
+        -- Guardar usuario en variable de sesión para el trigger
+        SET @usuario_sistema = p_usuario_sistema;
+        
+        -- Eliminar la entrega
+        DELETE FROM entregas WHERE id_entrega = p_id_entrega;
+        
+        -- Limpiar variable de sesión
+        SET @usuario_sistema = NULL;
+        
+        SELECT 'Entrega eliminada correctamente' AS mensaje, 1 AS success;
+    ELSE
+        -- Determinar el motivo por el cual no se puede eliminar
+        IF v_estado_actual != 1 THEN
+            SELECT 'No se puede eliminar una entrega que no está en estado pendiente' AS mensaje, 0 AS success;
+        ELSEIF v_tiene_evidencias > 0 THEN
+            SELECT 'No se puede eliminar la entrega porque tiene evidencias relacionadas' AS mensaje, 0 AS success;
+        ELSEIF v_tiene_penalizaciones > 0 THEN
+            SELECT 'No se puede eliminar la entrega porque tiene penalizaciones relacionadas' AS mensaje, 0 AS success;
+        ELSEIF v_tiene_otp > 0 THEN
+            SELECT 'No se puede eliminar la entrega porque tiene OTPs relacionados' AS mensaje, 0 AS success;
+        ELSE
+            SELECT 'No se pudo eliminar la entrega' AS mensaje, 0 AS success;
+        END IF;
+    END IF;
+END $$
+DELIMITER ;
+
+-- Procedimiento para cambiar estado de entrega
+DELIMITER $$
+CREATE PROCEDURE entregaCambiarEstado(
+    IN p_id_entrega INT,
+    IN p_id_estado_entrega INT,
+    IN p_usuario_sistema VARCHAR(100)
+)
+BEGIN
+    DECLARE v_entrega_existe INT DEFAULT 0;
+    
+    -- Verificar si la entrega existe
+    SELECT COUNT(*) INTO v_entrega_existe
+    FROM entregas 
+    WHERE id_entrega = p_id_entrega;
+    
+    IF v_entrega_existe = 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Entrega no encontrada';
+    END IF;
+    
+    -- Guardar usuario en variable de sesión para el trigger
+    SET @usuario_sistema = p_usuario_sistema;
+    
+    -- Actualizar estado
+    UPDATE entregas 
+    SET id_estado_entrega = p_id_estado_entrega, 
+        fecha_actualizacion = NOW()
+    WHERE id_entrega = p_id_entrega;
+    
+    -- Limpiar variable de sesión
+    SET @usuario_sistema = NULL;
+    
+    SELECT 'Estado de entrega actualizado correctamente' AS mensaje;
+END $$
+DELIMITER ;
+
+-- Procedimiento para reasignar repartidor
+DELIMITER $$
+CREATE PROCEDURE entregaReasignarRepartidor(
+    IN p_id_entrega INT,
+    IN p_id_repartidor INT,
+    IN p_usuario_sistema VARCHAR(100)
+)
+BEGIN
+    DECLARE v_entrega_existe INT DEFAULT 0;
+    DECLARE v_repartidor_existe INT DEFAULT 0;
+    
+    -- Verificar si la entrega existe
+    SELECT COUNT(*) INTO v_entrega_existe
+    FROM entregas 
+    WHERE id_entrega = p_id_entrega;
+    
+    IF v_entrega_existe = 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Entrega no encontrada';
+    END IF;
+    
+    -- Verificar si el repartidor existe y es repartidor (rol 3)
+    SELECT COUNT(*) INTO v_repartidor_existe
+    FROM usuarios 
+    WHERE id_usuario = p_id_repartidor AND id_rol = 3;
+    
+    IF v_repartidor_existe = 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Repartidor no encontrado o no válido';
+    END IF;
+    
+    -- Guardar usuario en variable de sesión para el trigger
+    SET @usuario_sistema = p_usuario_sistema;
+    
+    -- Reasignar repartidor
+    UPDATE entregas 
+    SET id_repartidor = p_id_repartidor, 
+        fecha_actualizacion = NOW()
+    WHERE id_entrega = p_id_entrega;
+    
+    -- Limpiar variable de sesión
+    SET @usuario_sistema = NULL;
+    
+    SELECT 'Repartidor reasignado correctamente' AS mensaje;
+END $$
+DELIMITER ;
+
+-- Procedimiento para obtener estadísticas de entregas
+DELIMITER $$
+CREATE PROCEDURE entregasEstadisticas()
+BEGIN
+    SELECT 
+        COUNT(*) as total_entregas,
+        SUM(CASE WHEN id_estado_entrega = 5 THEN 1 ELSE 0 END) as entregas_completadas,
+        SUM(CASE WHEN id_estado_entrega IN (1,2,3,4) THEN 1 ELSE 0 END) as entregas_pendientes,
+        SUM(CASE WHEN id_estado_entrega = 6 THEN 1 ELSE 0 END) as entregas_fallidas,
+        AVG(reintentos) as promedio_reintentos,
+        SUM(CASE WHEN fecha_real_entrega IS NOT NULL AND fecha_estimada_entrega IS NOT NULL 
+                 AND fecha_real_entrega > fecha_estimada_entrega THEN 1 ELSE 0 END) as entregas_con_retraso
+    FROM entregas
+    WHERE DATE(fecha_estimada_entrega) >= DATE_SUB(NOW(), INTERVAL 30 DAY);
+END $$
+DELIMITER ;
+
+-- Procedimiento para obtener entregas con filtros y paginación
+DELIMITER $$
+CREATE PROCEDURE entregasListar(
+    IN p_id_usuario INT,
+    IN p_id_rol INT,
+    IN p_estado VARCHAR(50),
+    IN p_repartidor VARCHAR(50),
+    IN p_fecha DATE,
+    IN p_offset INT,
+    IN p_limite INT
+)
+BEGIN
+    DECLARE v_offset INT DEFAULT 0;
+    DECLARE v_limite INT DEFAULT 10;
+    DECLARE v_total INT DEFAULT 0;
+    DECLARE v_total_paginas INT DEFAULT 1;
+
+    IF p_offset IS NOT NULL AND p_offset >= 0 THEN
+        SET v_offset = p_offset;
+    END IF;
+
+    IF p_limite IS NOT NULL AND p_limite > 0 THEN
+        SET v_limite = LEAST(p_limite, 50);
+    END IF;
+
+    -- Contar total de registros con filtros
+    SELECT COUNT(*)
+    INTO v_total
+    FROM entregas e
+    JOIN pedidos p ON e.id_pedido = p.id_pedido
+    JOIN clientes c ON p.id_cliente = c.id_cliente
+    LEFT JOIN usuarios u ON e.id_repartidor = u.id_usuario
+    LEFT JOIN rutas r ON e.id_ruta = r.id_ruta
+    JOIN estados_entrega ee ON e.id_estado_entrega = ee.id_estado_entrega
+    JOIN direcciones_cliente dc ON p.id_direccion_entrega = dc.id_direccion
+    JOIN zonas z ON dc.id_zona = z.id_zona
+    WHERE (p_estado IS NULL OR p_estado = '' OR e.id_estado_entrega = p_estado)
+      AND (p_repartidor IS NULL OR p_repartidor = '' OR e.id_repartidor = p_repartidor)
+      AND (p_fecha IS NULL OR DATE(e.fecha_estimada_entrega) = p_fecha)
+      AND (p_id_rol <> 3 OR e.id_repartidor = p_id_usuario);
+
+    -- Calcular total de páginas
+    IF v_total = 0 THEN
+        SET v_total_paginas = 1;
+    ELSE
+        SET v_total_paginas = CEILING(v_total / v_limite);
+    END IF;
+
+    -- Obtener entregas con información completa
+    SELECT 
+        e.id_entrega,
+        e.id_pedido,
+        e.id_ruta,
+        e.id_repartidor,
+        e.id_estado_entrega,
+        e.fecha_estimada_entrega,
+        e.fecha_real_entrega,
+        e.reintentos,
+        e.fecha_creacion,
+        e.fecha_actualizacion,
+        c.nombre AS nombre_cliente,
+        u.nombre AS nombre_repartidor,
+        r.nombre_ruta,
+        ee.nombre_estado AS estado_nombre,
+        dc.direccion,
+        z.nombre_zona
+    FROM entregas e
+    JOIN pedidos p ON e.id_pedido = p.id_pedido
+    JOIN clientes c ON p.id_cliente = c.id_cliente
+    LEFT JOIN usuarios u ON e.id_repartidor = u.id_usuario
+    LEFT JOIN rutas r ON e.id_ruta = r.id_ruta
+    JOIN estados_entrega ee ON e.id_estado_entrega = ee.id_estado_entrega
+    JOIN direcciones_cliente dc ON p.id_direccion_entrega = dc.id_direccion
+    JOIN zonas z ON dc.id_zona = z.id_zona
+    WHERE (p_estado IS NULL OR p_estado = '' OR e.id_estado_entrega = p_estado)
+      AND (p_repartidor IS NULL OR p_repartidor = '' OR e.id_repartidor = p_repartidor)
+      AND (p_fecha IS NULL OR DATE(e.fecha_estimada_entrega) = p_fecha)
+      AND (p_id_rol <> 3 OR e.id_repartidor = p_id_usuario)
+    ORDER BY e.fecha_estimada_entrega DESC
+    LIMIT v_limite OFFSET v_offset;
+
+    -- Retornar información de paginación
+    SELECT 
+        v_total AS total_registros,
+        v_total_paginas AS total_paginas,
+        v_limite AS limite,
+        v_offset AS offset_actual;
+END $$
+DELIMITER ;
+
+-- Procedimiento para obtener repartidores activos
+DELIMITER $$
+CREATE PROCEDURE repartidoresActivosListar()
+BEGIN
+    SELECT 
+        u.id_usuario,
+        u.nombre,
+        u.email
+    FROM usuarios u
+    WHERE u.id_rol = 3  -- Rol de repartidor
+      AND u.id_estado_usuario = 1  -- Estado activo
+    ORDER BY u.nombre;
+END $$
+DELIMITER ;
+
+-- Procedimiento para obtener vehículos disponibles
+DELIMITER $$
+CREATE PROCEDURE vehiculosDisponiblesListar()
+BEGIN
+    SELECT 
+        v.id_vehiculo,
+        v.placa,
+        tv.nombre AS tipo_vehiculo,
+        tv.capacidad_maxima_kg,
+        tv.capacidad_volumen_m3
+    FROM vehiculos v
+    JOIN tipos_vehiculo tv ON v.id_tipo_vehiculo = tv.id_tipo_vehiculo
+    WHERE v.id_estado_vehiculo = 1  -- Estado operativo
+    ORDER BY tv.capacidad_maxima_kg DESC;
+END $$
+DELIMITER ;

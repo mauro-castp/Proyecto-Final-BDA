@@ -1,4 +1,4 @@
-// entregas.js - Gestión completa de entregas
+// entregas.js - Gestión completa de entregas con SweetAlert2
 class EntregasApp {
     constructor() {
         this.entregas = [];
@@ -15,6 +15,7 @@ class EntregasApp {
             fecha: ''
         };
         this.entregaSeleccionada = null;
+        this.modoEdicion = false;
         this.init();
     }
 
@@ -29,43 +30,30 @@ class EntregasApp {
         // Filtros
         document.getElementById('filtroEstado')?.addEventListener('change', (e) => {
             this.filtros.estado = e.target.value;
+            this.aplicarFiltros();
         });
 
         document.getElementById('filtroRepartidor')?.addEventListener('change', (e) => {
             this.filtros.repartidor = e.target.value;
+            this.aplicarFiltros();
         });
 
         document.getElementById('filtroFecha')?.addEventListener('change', (e) => {
             this.filtros.fecha = e.target.value;
-        });
-
-        // Paginación
-        document.getElementById('btnAnterior')?.addEventListener('click', () => {
-            if (this.paginaActual > 1) {
-                this.paginaActual--;
-                this.cargarEntregas();
-            }
-        });
-
-        document.getElementById('btnSiguiente')?.addEventListener('click', () => {
-            if (this.paginaActual < this.totalPaginas) {
-                this.paginaActual++;
-                this.cargarEntregas();
-            }
-        });
-
-        // Eventos de modales
-        document.getElementById('pedidoSelect')?.addEventListener('change', (e) => {
-            this.cargarInfoPedido(e.target.value);
+            this.aplicarFiltros();
         });
 
         // Búsqueda en tiempo real
-        document.getElementById('buscarEntregas')?.addEventListener('input', (e) => {
-            this.buscarEntregas(e.target.value);
-        });
+        const buscarInput = document.getElementById('buscarEntregas');
+        if (buscarInput) {
+            buscarInput.addEventListener('input', (e) => {
+                this.buscarEntregas(e.target.value);
+            });
+        }
     }
 
     // ==================== CARGA DE DATOS ====================
+
     async cargarDatosIniciales() {
         try {
             await Promise.all([
@@ -77,72 +65,33 @@ class EntregasApp {
             console.log('✅ Datos iniciales cargados correctamente');
         } catch (error) {
             console.error('Error cargando datos iniciales:', error);
-            this.mostrarError('Error cargando datos del sistema');
-        }
-    }
-
-    async cargarEntregas() {
-        try {
-            this.mostrarCargando();
-
-            const params = new URLSearchParams({
-                pagina: this.paginaActual,
-                limite: this.registrosPorPagina,
-                ...this.filtros
-            });
-
-            // Si es repartidor, solo cargar sus entregas
-            if (this.esRepartidor()) {
-                params.append('repartidor', 'mi');
-            }
-
-            const response = await fetch(`/api/entregas?${params}`, {
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-
-            const data = await response.json();
-            this.entregas = Array.isArray(data) ? data : (data.entregas || []);
-
-            // Calcular paginación si no viene del servidor
-            this.totalPaginas = data.totalPaginas || Math.ceil(this.entregas.length / this.registrosPorPagina);
-
-            this.actualizarTabla();
-            this.actualizarEstadisticas();
-            this.actualizarPaginacion();
-
-        } catch (error) {
-            console.error('Error cargando entregas:', error);
-            this.mostrarError('Error cargando la lista de entregas: ' + error.message);
+            await this.mostrarError('Error cargando datos del sistema');
         }
     }
 
     async cargarRepartidores() {
         try {
-            // En una implementación real, tendrías un endpoint para repartidores
-            // Por ahora simulamos la carga
-            const response = await fetch('/api/usuarios?rol=Repartidor');
+            const response = await fetch('/api/entregas/repartidores');
             if (response.ok) {
                 this.repartidores = await response.json();
-            } else {
-                // Datos de ejemplo para desarrollo
-                this.repartidores = [
-                    { id_usuario: 1, nombre: 'Carlos Rodríguez' },
-                    { id_usuario: 2, nombre: 'Ana Martínez' },
-                    { id_usuario: 3, nombre: 'Luis García' }
-                ];
-            }
 
-            // Llenar filtro de repartidores
-            const select = document.getElementById('filtroRepartidor');
-            if (select) {
-                select.innerHTML = '<option value="">Todos los repartidores</option>' +
-                    this.repartidores.map(repartidor =>
-                        `<option value="${repartidor.id_usuario}">${repartidor.nombre}</option>`
-                    ).join('');
+                // Llenar filtro de repartidores
+                const select = document.getElementById('filtroRepartidor');
+                if (select) {
+                    select.innerHTML = '<option value="">Todos los repartidores</option>' +
+                        this.repartidores.map(repartidor =>
+                            `<option value="${repartidor.id_usuario}">${repartidor.nombre}</option>`
+                        ).join('');
+                }
+
+                // Llenar select de repartidores en modal
+                const selectModal = document.getElementById('repartidorSelect');
+                if (selectModal) {
+                    selectModal.innerHTML = '<option value="">Seleccionar repartidor...</option>' +
+                        this.repartidores.map(repartidor =>
+                            `<option value="${repartidor.id_usuario}">${repartidor.nombre}</option>`
+                        ).join('');
+                }
             }
         } catch (error) {
             console.error('Error cargando repartidores:', error);
@@ -151,12 +100,12 @@ class EntregasApp {
 
     async cargarPedidosPendientes() {
         try {
-            const response = await fetch('/api/pedidos?estado=pendiente');
+            const response = await fetch('/api/entregas/pedidos-pendientes');
             if (response.ok) {
                 const data = await response.json();
                 this.pedidosPendientes = Array.isArray(data) ? data : [];
 
-                // Llenar select de pedidos en modal de asignación
+                // Llenar select de pedidos en modal
                 const select = document.getElementById('pedidoSelect');
                 if (select) {
                     select.innerHTML = '<option value="">Seleccionar pedido...</option>' +
@@ -191,7 +140,7 @@ class EntregasApp {
 
     async cargarVehiculos() {
         try {
-            const response = await fetch('/api/vehiculos?estado=disponible');
+            const response = await fetch('/api/entregas/vehiculos');
             if (response.ok) {
                 this.vehiculos = await response.json();
 
@@ -199,7 +148,7 @@ class EntregasApp {
                 if (select) {
                     select.innerHTML = '<option value="">Seleccionar vehículo...</option>' +
                         this.vehiculos.map(vehiculo =>
-                            `<option value="${vehiculo.id_vehiculo}">${vehiculo.placa} - ${vehiculo.tipo}</option>`
+                            `<option value="${vehiculo.id_vehiculo}">${vehiculo.placa} - ${vehiculo.tipo_vehiculo}</option>`
                         ).join('');
                 }
             }
@@ -208,7 +157,398 @@ class EntregasApp {
         }
     }
 
+    // ==================== CRUD OPERATIONS ====================
+
+    // CREATE - Asignar nueva entrega
+    async guardarEntrega() {
+        const form = document.getElementById('formNuevaEntrega');
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+
+        const formData = new FormData(form);
+        const data = {
+            id_pedido: parseInt(formData.get('pedidoSelect')),
+            id_ruta: formData.get('rutaSelect') ? parseInt(formData.get('rutaSelect')) : null,
+            id_vehiculo: parseInt(formData.get('vehiculoSelect')),
+            id_repartidor: parseInt(formData.get('repartidorSelect'))
+        };
+
+        try {
+            const result = await Swal.fire({
+                title: '¿Asignar entrega?',
+                text: '¿Está seguro de que desea asignar esta entrega?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, asignar',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33'
+            });
+
+            if (!result.isConfirmed) return;
+
+            const response = await fetch('/api/entregas', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+
+            const responseData = await response.json();
+
+            if (!response.ok) {
+                throw new Error(responseData.error || 'Error asignando entrega');
+            }
+
+            await Swal.fire({
+                title: '¡Éxito!',
+                text: 'Entrega asignada correctamente',
+                icon: 'success',
+                confirmButtonColor: '#3085d6'
+            });
+
+            this.cerrarModal();
+            this.cargarEntregas();
+
+        } catch (error) {
+            console.error('Error asignando entrega:', error);
+            await Swal.fire({
+                title: 'Error',
+                text: 'Error al asignar la entrega: ' + error.message,
+                icon: 'error',
+                confirmButtonColor: '#d33'
+            });
+        }
+    }
+
+    // READ - Cargar entregas
+    async cargarEntregas() {
+        try {
+            this.mostrarCargando();
+
+            const params = new URLSearchParams({
+                pagina: this.paginaActual,
+                limite: this.registrosPorPagina,
+                ...this.filtros
+            });
+
+            // Determinar el endpoint según el rol
+            const endpoint = this.esRepartidor() ? '/api/mis-entregas' : '/api/entregas';
+            
+            const response = await fetch(`${endpoint}?${params}`, {
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+
+            const data = await response.json();
+            this.entregas = data.entregas || [];
+            
+            // Manejar la nueva estructura de paginación
+            if (data.paginacion) {
+                this.totalPaginas = data.paginacion.total_paginas || 1;
+                this.totalRegistros = data.paginacion.total_registros || 0;
+            } else {
+                this.totalPaginas = data.total_paginas || 1;
+                this.totalRegistros = data.total || 0;
+            }
+
+            this.actualizarTabla();
+            this.actualizarEstadisticas();
+            this.actualizarPaginacion();
+
+        } catch (error) {
+            console.error('Error cargando entregas:', error);
+            await this.mostrarError('Error cargando la lista de entregas: ' + error.message);
+        }
+    }
+
+    // UPDATE - Confirmar entrega
+    async confirmarEntrega() {
+        const form = document.getElementById('formConfirmarEntrega');
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+
+        const formData = new FormData(form);
+        const data = {
+            hora_real: formData.get('horaReal') + ':00',
+            evidencia_url: formData.get('evidencia') || ''
+        };
+
+        try {
+            const result = await Swal.fire({
+                title: '¿Confirmar entrega?',
+                text: '¿Está seguro de que desea confirmar esta entrega como completada?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, confirmar',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#28a745',
+                cancelButtonColor: '#d33'
+            });
+
+            if (!result.isConfirmed) return;
+
+            const response = await fetch(`/api/entregas/${this.entregaSeleccionada}/confirmar`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+
+            const responseData = await response.json();
+
+            if (!response.ok) {
+                throw new Error(responseData.error || 'Error confirmando entrega');
+            }
+
+            await Swal.fire({
+                title: '¡Éxito!',
+                text: 'Entrega confirmada correctamente',
+                icon: 'success',
+                confirmButtonColor: '#28a745'
+            });
+
+            this.cerrarModalConfirmar();
+            this.cargarEntregas();
+
+        } catch (error) {
+            console.error('Error confirmando entrega:', error);
+            await Swal.fire({
+                title: 'Error',
+                text: 'Error al confirmar la entrega: ' + error.message,
+                icon: 'error',
+                confirmButtonColor: '#d33'
+            });
+        }
+    }
+
+    // UPDATE - Registrar reintento
+    async registrarReintento() {
+        const form = document.getElementById('formReintentoEntrega');
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+
+        const formData = new FormData(form);
+        const data = {
+            motivo_fallo: parseInt(formData.get('motivoReintento'))
+        };
+
+        try {
+            const result = await Swal.fire({
+                title: '¿Registrar reintento?',
+                text: '¿Está seguro de que desea registrar un reintento para esta entrega?',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, registrar',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#ffc107',
+                cancelButtonColor: '#d33'
+            });
+
+            if (!result.isConfirmed) return;
+
+            const response = await fetch(`/api/entregas/${this.entregaSeleccionada}/reintento`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+
+            const responseData = await response.json();
+
+            if (!response.ok) {
+                throw new Error(responseData.error || 'Error registrando reintento');
+            }
+
+            await Swal.fire({
+                title: '¡Reintento registrado!',
+                text: 'El reintento ha sido registrado correctamente',
+                icon: 'success',
+                confirmButtonColor: '#ffc107'
+            });
+
+            this.cerrarModalReintento();
+            this.cargarEntregas();
+
+        } catch (error) {
+            console.error('Error registrando reintento:', error);
+            await Swal.fire({
+                title: 'Error',
+                text: 'Error al registrar el reintento: ' + error.message,
+                icon: 'error',
+                confirmButtonColor: '#d33'
+            });
+        }
+    }
+
+    // DELETE - Eliminar entrega
+    async eliminarEntrega(idEntrega) {
+        try {
+            const result = await Swal.fire({
+                title: '¿Eliminar entrega?',
+                text: 'Esta acción no se puede deshacer. ¿Está seguro de que desea eliminar esta entrega?',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, eliminar',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                reverseButtons: true
+            });
+
+            if (!result.isConfirmed) return;
+
+            const response = await fetch(`/api/entregas/${idEntrega}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const responseData = await response.json();
+
+            if (!response.ok) {
+                throw new Error(responseData.error || 'Error eliminando entrega');
+            }
+
+            await Swal.fire({
+                title: '¡Eliminada!',
+                text: 'La entrega ha sido eliminada correctamente',
+                icon: 'success',
+                confirmButtonColor: '#3085d6'
+            });
+
+            this.cargarEntregas();
+
+        } catch (error) {
+            console.error('Error eliminando entrega:', error);
+            await Swal.fire({
+                title: 'Error',
+                text: 'Error al eliminar la entrega: ' + error.message,
+                icon: 'error',
+                confirmButtonColor: '#d33'
+            });
+        }
+    }
+
+    // ==================== MODALES ====================
+
+    mostrarModalNuevaEntrega() {
+        this.modoEdicion = false;
+        this.cerrarTodosModales();
+        document.getElementById('modalNuevaEntrega').style.display = 'block';
+        document.getElementById('formNuevaEntrega').reset();
+        document.getElementById('infoPedido').style.display = 'none';
+        this.cargarDatosParaModal();
+    }
+
+    cerrarModal() {
+        document.getElementById('modalNuevaEntrega').style.display = 'none';
+    }
+
+    async mostrarModalDetalles(idEntrega) {
+        await this.verDetalles(idEntrega);
+    }
+
+    cerrarModalDetalles() {
+        document.getElementById('modalDetallesEntrega').style.display = 'none';
+    }
+
+    mostrarModalConfirmar(idEntrega) {
+        this.entregaSeleccionada = idEntrega;
+        this.cargarDatosParaConfirmar(idEntrega);
+        this.cerrarTodosModales();
+        document.getElementById('modalConfirmarEntrega').style.display = 'block';
+    }
+
+    cerrarModalConfirmar() {
+        document.getElementById('modalConfirmarEntrega').style.display = 'none';
+        document.getElementById('formConfirmarEntrega').reset();
+    }
+
+    mostrarModalReintento(idEntrega) {
+        this.entregaSeleccionada = idEntrega;
+        document.getElementById('entregaIdReintento').value = idEntrega;
+        this.cerrarTodosModales();
+        document.getElementById('modalReintentoEntrega').style.display = 'block';
+    }
+
+    cerrarModalReintento() {
+        document.getElementById('modalReintentoEntrega').style.display = 'none';
+        document.getElementById('formReintentoEntrega').reset();
+    }
+
+    cerrarTodosModales() {
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.style.display = 'none';
+        });
+    }
+
+    // ==================== FUNCIONES ADICIONALES ====================
+
+    async cargarDatosParaModal() {
+        await Promise.all([
+            this.cargarPedidosPendientes(),
+            this.cargarRutas(),
+            this.cargarVehiculos(),
+            this.cargarRepartidores()
+        ]);
+    }
+
+    async cargarDatosParaConfirmar(idEntrega) {
+        try {
+            const response = await fetch(`/api/entregas/${idEntrega}`);
+            if (response.ok) {
+                const entrega = await response.json();
+                document.getElementById('confirmarPedido').textContent = `#${entrega.id_pedido}`;
+                document.getElementById('confirmarCliente').textContent = entrega.nombre_cliente || 'N/A';
+                document.getElementById('confirmarDireccion').textContent = entrega.direccion || 'N/A';
+                document.getElementById('entregaIdConfirmar').value = idEntrega;
+
+                // Establecer hora actual como predeterminada
+                const ahora = new Date();
+                document.getElementById('horaReal').value = ahora.toISOString().slice(0, 16);
+            }
+        } catch (error) {
+            console.error('Error cargando detalles para confirmar:', error);
+        }
+    }
+
+    async cargarInfoPedido(idPedido) {
+        if (!idPedido) {
+            document.getElementById('infoPedido').style.display = 'none';
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/pedidos/${idPedido}`);
+            if (response.ok) {
+                const pedido = await response.json();
+                document.getElementById('infoCliente').textContent = pedido.nombre_cliente || 'N/A';
+                document.getElementById('infoDireccion').textContent = pedido.direccion_entrega || 'N/A';
+                document.getElementById('infoProductos').textContent = this.formatearProductos(pedido.items || []);
+                document.getElementById('infoTotal').textContent = this.formatearMoneda(pedido.total_pedido || 0);
+                document.getElementById('infoPedido').style.display = 'block';
+            }
+        } catch (error) {
+            console.error('Error cargando info del pedido:', error);
+        }
+    }
+
     // ==================== RENDERIZADO ====================
+
     actualizarTabla() {
         const tbody = document.getElementById('tablaEntregas');
         if (!tbody) return;
@@ -216,10 +556,10 @@ class EntregasApp {
         if (this.entregas.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="8" class="text-center">
-                        <div class="loading-spinner">
-                            <i class="fas fa-box-open"></i>
-                            <span>No se encontraron entregas</span>
+                    <td colspan="6" class="text-center py-4">
+                        <div class="no-results">
+                            <i class="fas fa-box-open fa-2x mb-2"></i>
+                            <p>No se encontraron entregas</p>
                         </div>
                     </td>
                 </tr>
@@ -228,45 +568,68 @@ class EntregasApp {
         }
 
         tbody.innerHTML = this.entregas.map(entrega => `
-            <tr class="${this.obtenerClasePrioridad(entrega)}">
+            <tr class="${this.obtenerClaseFila(entrega)}" data-entrega-id="${entrega.id_entrega}">
                 <td>${entrega.nombre_cliente || 'N/A'}</td>
                 <td>${entrega.nombre_repartidor || 'No asignado'}</td>
                 <td>${entrega.nombre_ruta || 'N/A'}</td>
                 <td>
                     <span class="tiempo-estimado ${this.obtenerClaseTiempo(entrega)}">
-                        ${this.formatearFechaHora(entrega.fecha_estimada)}
-                        ${this.estaAtrasada(entrega) ? ' (Atrasada)' : ''}
+                        ${this.formatearFechaHora(entrega.fecha_estimada_entrega)}
+                        ${this.estaAtrasada(entrega) ? ' ⚠️' : ''}
                     </span>
                 </td>
                 <td>
                     <span class="estado-badge estado-${this.getEstadoSlug(entrega.id_estado_entrega)}">
-                        ${this.getEstadoTexto(entrega.id_estado_entrega)}
-                        ${entrega.reintentos > 0 ?
-                `<span class="reintentos-badge ${entrega.reintentos >= 3 ? 'reintentos-max' : ''}">
+                        ${entrega.estado_nombre || this.getEstadoTexto(entrega.id_estado_entrega)}
+                        ${entrega.reintentos > 0 ? 
+                            `<span class="reintentos-badge ${entrega.reintentos >= 3 ? 'reintentos-max' : ''}">
                                 ${entrega.reintentos}
                             </span>` : ''
-            }
+                        }
                     </span>
                 </td>
                 <td class="acciones-cell">
-                    <button class="btn-action btn-view" onclick="entregasApp.verDetalles(${entrega.id_entrega})" title="Ver detalles">
-                        <i class="fas fa-eye"></i>
-                    </button>
-                    ${this.puedeConfirmar(entrega) ? `
-                        <button class="btn-action btn-confirm" onclick="entregasApp.mostrarModalConfirmar(${entrega.id_entrega})" title="Confirmar entrega">
-                            <i class="fas fa-check"></i>
+                    <div class="btn-group">
+                        <button class="btn-action btn-view" onclick="entregasApp.mostrarModalDetalles(${entrega.id_entrega})" 
+                                title="Ver detalles">
+                            <i class="fas fa-eye"></i>
                         </button>
-                    ` : ''}
-                    ${this.puedeReintentar(entrega) ? `
-                        <button class="btn-action btn-retry" onclick="entregasApp.mostrarModalReintento(${entrega.id_entrega})" title="Registrar reintento">
-                            <i class="fas fa-redo"></i>
-                        </button>
-                    ` : ''}
-                    ${this.puedeReasignar(entrega) ? `
-                        <button class="btn-action btn-edit" onclick="entregasApp.reasignarEntrega(${entrega.id_entrega})" title="Reasignar">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                    ` : ''}
+                        
+                        ${this.puedeConfirmar(entrega) ? `
+                            <button class="btn-action btn-confirm" onclick="entregasApp.mostrarModalConfirmar(${entrega.id_entrega})" 
+                                    title="Confirmar entrega">
+                                <i class="fas fa-check"></i>
+                            </button>
+                        ` : ''}
+                        
+                        ${this.puedeReintentar(entrega) ? `
+                            <button class="btn-action btn-retry" onclick="entregasApp.mostrarModalReintento(${entrega.id_entrega})" 
+                                    title="Registrar reintento">
+                                <i class="fas fa-redo"></i>
+                            </button>
+                        ` : ''}
+                        
+                        ${this.puedeReasignar(entrega) ? `
+                            <button class="btn-action btn-edit" onclick="entregasApp.mostrarModalReasignar(${entrega.id_entrega})" 
+                                    title="Reasignar repartidor">
+                                <i class="fas fa-user-edit"></i>
+                            </button>
+                        ` : ''}
+                        
+                        ${this.puedeCambiarEstado(entrega) ? `
+                            <button class="btn-action btn-state" onclick="entregasApp.mostrarModalCambiarEstado(${entrega.id_entrega})" 
+                                    title="Cambiar estado">
+                                <i class="fas fa-exchange-alt"></i>
+                            </button>
+                        ` : ''}
+                        
+                        ${this.puedeEliminar(entrega) ? `
+                            <button class="btn-action btn-delete" onclick="entregasApp.eliminarEntrega(${entrega.id_entrega})" 
+                                    title="Eliminar entrega">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        ` : ''}
+                    </div>
                 </td>
             </tr>
         `).join('');
@@ -274,16 +637,16 @@ class EntregasApp {
 
     actualizarEstadisticas() {
         const total = this.entregas.length;
-        const pendientes = this.entregas.filter(e => [1, 2].includes(e.id_estado_entrega)).length;
-        const enCamino = this.entregas.filter(e => e.id_estado_entrega === 2).length;
-        const exitosas = this.entregas.filter(e => e.id_estado_entrega === 4).length;
+        const pendientes = this.entregas.filter(e => [1, 2, 3, 4].includes(e.id_estado_entrega)).length;
+        const enCamino = this.entregas.filter(e => e.id_estado_entrega === 3).length;
+        const exitosas = this.entregas.filter(e => e.id_estado_entrega === 5).length;
         const tasaExito = total > 0 ? Math.round((exitosas / total) * 100) : 0;
 
-        document.getElementById('totalEntregas').textContent = total;
-        document.getElementById('entregasPendientes').textContent = pendientes;
-        document.getElementById('entregasCamino').textContent = enCamino;
-        document.getElementById('entregasExitosas').textContent = exitosas;
-        document.getElementById('tasaExito').textContent = `${tasaExito}%`;
+        if (document.getElementById('totalEntregas')) document.getElementById('totalEntregas').textContent = total;
+        if (document.getElementById('entregasPendientes')) document.getElementById('entregasPendientes').textContent = pendientes;
+        if (document.getElementById('entregasCamino')) document.getElementById('entregasCamino').textContent = enCamino;
+        if (document.getElementById('entregasExitosas')) document.getElementById('entregasExitosas').textContent = exitosas;
+        if (document.getElementById('tasaExito')) document.getElementById('tasaExito').textContent = `${tasaExito}%`;
     }
 
     actualizarPaginacion() {
@@ -298,11 +661,11 @@ class EntregasApp {
         if (btnSiguiente) btnSiguiente.disabled = this.paginaActual === this.totalPaginas;
 
         const inicio = ((this.paginaActual - 1) * this.registrosPorPagina) + 1;
-        const fin = Math.min(this.paginaActual * this.registrosPorPagina, this.entregas.length);
+        const fin = Math.min(this.paginaActual * this.registrosPorPagina, this.totalRegistros);
 
         if (mostrandoDesde) mostrandoDesde.textContent = inicio;
         if (mostrandoHasta) mostrandoHasta.textContent = fin;
-        if (totalRegistros) totalRegistros.textContent = this.entregas.length;
+        if (totalRegistros) totalRegistros.textContent = this.totalRegistros;
 
         if (paginationNumbers) {
             paginationNumbers.innerHTML = '';
@@ -319,296 +682,8 @@ class EntregasApp {
         }
     }
 
-    // ==================== LÓGICA DE ESTADOS ====================
-    obtenerClasePrioridad(entrega) {
-        if (this.estaAtrasada(entrega)) return 'prioridad-alta';
-        if (this.esProxima(entrega)) return 'prioridad-media';
-        return 'prioridad-baja';
-    }
-
-    obtenerClaseTiempo(entrega) {
-        if (this.estaAtrasada(entrega)) return 'tiempo-retrasado';
-        if (this.esProxima(entrega)) return 'tiempo-proximo';
-        return 'tiempo-cumplido';
-    }
-
-    estaAtrasada(entrega) {
-        if (!entrega.fecha_estimada || entrega.id_estado_entrega === 4) return false;
-        const estimada = new Date(entrega.fecha_estimada);
-        const ahora = new Date();
-        return estimada < ahora;
-    }
-
-    esProxima(entrega) {
-        if (!entrega.fecha_estimada || entrega.id_estado_entrega === 4) return false;
-        const estimada = new Date(entrega.fecha_estimada);
-        const ahora = new Date();
-        const unaHora = 60 * 60 * 1000;
-        return (estimada - ahora) <= unaHora;
-    }
-
-    esUrgente(entrega) {
-        return this.estaAtrasada(entrega) || (entrega.reintentos || 0) >= 2;
-    }
-
-    puedeConfirmar(entrega) {
-        if (this.esRepartidor() && entrega.id_repartidor !== this.obtenerUserId()) {
-            return false;
-        }
-        return [1, 2].includes(entrega.id_estado_entrega); // Pendiente o En camino
-    }
-
-    puedeReintentar(entrega) {
-        if (this.esRepartidor() && entrega.id_repartidor !== this.obtenerUserId()) {
-            return false;
-        }
-        return entrega.id_estado_entrega === 3 && (entrega.reintentos || 0) < 3; // Fallida con menos de 3 reintentos
-    }
-
-    puedeReasignar(entrega) {
-        if (this.esRepartidor()) return false;
-        return [1, 3].includes(entrega.id_estado_entrega); // Pendiente o Fallida
-    }
-
-    getEstadoSlug(idEstado) {
-        const estados = {
-            1: 'pendiente',
-            2: 'en_camino',
-            3: 'fallido',
-            4: 'entregado',
-            5: 'cancelado'
-        };
-        return estados[idEstado] || 'pendiente';
-    }
-
-    getEstadoTexto(idEstado) {
-        const estados = {
-            1: 'Pendiente',
-            2: 'En Camino',
-            3: 'Fallido',
-            4: 'Entregado',
-            5: 'Cancelado'
-        };
-        return estados[idEstado] || 'Desconocido';
-    }
-
-    // ==================== MODALES ====================
-    mostrarModalAsignarEntrega() {
-        this.cerrarTodosModales();
-        document.getElementById('modalAsignarEntrega').style.display = 'block';
-    }
-
-    cerrarModalAsignar() {
-        document.getElementById('modalAsignarEntrega').style.display = 'none';
-        document.getElementById('formAsignarEntrega').reset();
-        document.getElementById('infoPedido').style.display = 'none';
-    }
-
-    async mostrarModalConfirmar(idEntrega) {
-        this.entregaSeleccionada = idEntrega;
-
-        try {
-            const response = await fetch(`/api/entregas/${idEntrega}`);
-            if (response.ok) {
-                const entrega = await response.json();
-                document.getElementById('confirmarPedido').textContent = `#${entrega.id_pedido}`;
-                document.getElementById('confirmarCliente').textContent = entrega.nombre_cliente || 'N/A';
-                document.getElementById('confirmarDireccion').textContent = entrega.direccion_entrega || 'N/A';
-                document.getElementById('entregaIdConfirmar').value = idEntrega;
-
-                // Establecer hora actual como predeterminada
-                const ahora = new Date();
-                document.getElementById('horaReal').value = ahora.toISOString().slice(0, 16);
-            }
-        } catch (error) {
-            console.error('Error cargando detalles para confirmar:', error);
-        }
-
-        this.cerrarTodosModales();
-        document.getElementById('modalConfirmarEntrega').style.display = 'block';
-    }
-
-    cerrarModalConfirmar() {
-        document.getElementById('modalConfirmarEntrega').style.display = 'none';
-        document.getElementById('formConfirmarEntrega').reset();
-        this.entregaSeleccionada = null;
-    }
-
-    mostrarModalReintento(idEntrega) {
-        this.entregaSeleccionada = idEntrega;
-        document.getElementById('entregaIdReintento').value = idEntrega;
-
-        this.cerrarTodosModales();
-        document.getElementById('modalReintentoEntrega').style.display = 'block';
-    }
-
-    cerrarModalReintento() {
-        document.getElementById('modalReintentoEntrega').style.display = 'none';
-        document.getElementById('formReintentoEntrega').reset();
-        this.entregaSeleccionada = null;
-    }
-
-    cerrarTodosModales() {
-        document.querySelectorAll('.modal').forEach(modal => {
-            modal.style.display = 'none';
-        });
-    }
-
-    // ==================== ACCIONES ====================
-    async cargarInfoPedido(idPedido) {
-        if (!idPedido) {
-            document.getElementById('infoPedido').style.display = 'none';
-            return;
-        }
-
-        try {
-            const response = await fetch(`/api/pedidos/${idPedido}`);
-            if (response.ok) {
-                const pedido = await response.json();
-                document.getElementById('infoCliente').textContent = pedido.nombre_cliente || 'N/A';
-                document.getElementById('infoDireccion').textContent = pedido.direccion_entrega || 'N/A';
-                document.getElementById('infoProductos').textContent = this.formatearProductos(pedido.items);
-                document.getElementById('infoTotal').textContent = this.formatearMoneda(pedido.total || 0);
-                document.getElementById('infoPedido').style.display = 'block';
-            }
-        } catch (error) {
-            console.error('Error cargando info del pedido:', error);
-        }
-    }
-
-    async asignarEntrega() {
-        const form = document.getElementById('formAsignarEntrega');
-        if (!form.checkValidity()) {
-            form.reportValidity();
-            return;
-        }
-
-        const formData = new FormData(form);
-        const data = {
-            pedido_id: parseInt(formData.get('pedidoSelect')),
-            ruta_id: parseInt(formData.get('rutaSelect')),
-            vehiculo_id: parseInt(formData.get('vehiculoSelect'))
-        };
-
-        try {
-            const response = await fetch('/api/entregas', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(data)
-            });
-
-            if (!response.ok) throw new Error('Error asignando entrega');
-
-            this.mostrarExito('Entrega asignada correctamente');
-            this.cerrarModalAsignar();
-            this.cargarEntregas();
-
-        } catch (error) {
-            console.error('Error asignando entrega:', error);
-            this.mostrarError('Error al asignar la entrega: ' + error.message);
-        }
-    }
-
-    async confirmarEntrega() {
-        const form = document.getElementById('formConfirmarEntrega');
-        if (!form.checkValidity()) {
-            form.reportValidity();
-            return;
-        }
-
-        const formData = new FormData(form);
-        const data = {
-            hora_real: formData.get('horaReal') + ':00',
-            evidencia: formData.get('evidencia') || ''
-        };
-
-        try {
-            const response = await fetch(`/api/entregas/${this.entregaSeleccionada}/confirmar`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(data)
-            });
-
-            if (!response.ok) throw new Error('Error confirmando entrega');
-
-            this.mostrarExito('Entrega confirmada correctamente');
-            this.cerrarModalConfirmar();
-            this.cargarEntregas();
-
-        } catch (error) {
-            console.error('Error confirmando entrega:', error);
-            this.mostrarError('Error al confirmar la entrega: ' + error.message);
-        }
-    }
-
-    async registrarReintento() {
-        const form = document.getElementById('formReintentoEntrega');
-        if (!form.checkValidity()) {
-            form.reportValidity();
-            return;
-        }
-
-        const formData = new FormData(form);
-        const data = {
-            motivo: formData.get('motivoReintento') + (formData.get('observacionesReintento') ?
-                ': ' + formData.get('observacionesReintento') : '')
-        };
-
-        try {
-            const response = await fetch(`/api/entregas/${this.entregaSeleccionada}/reintento`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(data)
-            });
-
-            if (!response.ok) throw new Error('Error registrando reintento');
-
-            this.mostrarExito('Reintento registrado correctamente');
-            this.cerrarModalReintento();
-            this.cargarEntregas();
-
-        } catch (error) {
-            console.error('Error registrando reintento:', error);
-            this.mostrarError('Error al registrar el reintento: ' + error.message);
-        }
-    }
-
-    async verDetalles(idEntrega) {
-        try {
-            const response = await fetch(`/api/entregas/${idEntrega}`);
-            if (response.ok) {
-                const entrega = await response.json();
-                this.mostrarDetallesEntrega(entrega);
-            }
-        } catch (error) {
-            console.error('Error cargando detalles:', error);
-            this.mostrarError('Error al cargar los detalles de la entrega');
-        }
-    }
-
-    mostrarDetallesEntrega(entrega) {
-        // Implementar modal de detalles específico
-        alert(`Detalles de Entrega #${entrega.id_entrega}\n\n` +
-            `Pedido: #${entrega.id_pedido}\n` +
-            `Cliente: ${entrega.nombre_cliente || 'N/A'}\n` +
-            `Estado: ${this.getEstadoTexto(entrega.id_estado_entrega)}\n` +
-            `Fecha estimada: ${this.formatearFechaHora(entrega.fecha_estimada)}\n` +
-            `Reintentos: ${entrega.reintentos || 0}`);
-    }
-
-    reasignarEntrega(idEntrega) {
-        // Implementar lógica de reasignación
-        console.log('Reasignar entrega:', idEntrega);
-        this.mostrarInfo('Funcionalidad de reasignación en desarrollo');
-    }
-
     // ==================== UTILIDADES ====================
+
     aplicarFiltros() {
         this.paginaActual = 1;
         this.cargarEntregas();
@@ -634,7 +709,7 @@ class EntregasApp {
             if (entregasFiltradas.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="8" class="text-center">
+                        <td colspan="6" class="text-center">
                             <div class="loading-spinner">
                                 <i class="fas fa-search"></i>
                                 <span>No se encontraron entregas con "${termino}"</span>
@@ -652,6 +727,162 @@ class EntregasApp {
         }
     }
 
+    // ==================== SWEETALERT2 NOTIFICATIONS ====================
+
+    async mostrarExito(mensaje, titulo = '¡Éxito!') {
+        await Swal.fire({
+            title: titulo,
+            text: mensaje,
+            icon: 'success',
+            confirmButtonColor: '#3085d6',
+            timer: 3000,
+            showConfirmButton: false
+        });
+    }
+
+    async mostrarError(mensaje, titulo = 'Error') {
+        await Swal.fire({
+            title: titulo,
+            text: mensaje,
+            icon: 'error',
+            confirmButtonColor: '#d33'
+        });
+    }
+
+    async mostrarInfo(mensaje, titulo = 'Información') {
+        await Swal.fire({
+            title: titulo,
+            text: mensaje,
+            icon: 'info',
+            confirmButtonColor: '#3085d6',
+            timer: 3000,
+            showConfirmButton: false
+        });
+    }
+
+    // ==================== MÉTODOS DE DETALLES ====================
+
+    async verDetalles(idEntrega) {
+        try {
+            const response = await fetch(`/api/entregas/${idEntrega}`);
+            if (response.ok) {
+                const entrega = await response.json();
+                
+                await Swal.fire({
+                    title: `Detalles de Entrega #${entrega.id_entrega}`,
+                    html: `
+                        <div class="text-left">
+                            <p><strong>Pedido:</strong> #${entrega.id_pedido}</p>
+                            <p><strong>Cliente:</strong> ${entrega.nombre_cliente || 'N/A'}</p>
+                            <p><strong>Repartidor:</strong> ${entrega.nombre_repartidor || 'No asignado'}</p>
+                            <p><strong>Estado:</strong> ${entrega.estado_nombre || 'N/A'}</p>
+                            <p><strong>Fecha estimada:</strong> ${this.formatearFechaHora(entrega.fecha_estimada_entrega)}</p>
+                            <p><strong>Fecha real:</strong> ${entrega.fecha_real_entrega ? this.formatearFechaHora(entrega.fecha_real_entrega) : 'Pendiente'}</p>
+                            <p><strong>Reintentos:</strong> ${entrega.reintentos || 0}</p>
+                            <p><strong>Dirección:</strong> ${entrega.direccion || 'N/A'}</p>
+                            <p><strong>Zona:</strong> ${entrega.nombre_zona || 'N/A'}</p>
+                        </div>
+                    `,
+                    confirmButtonText: 'Cerrar',
+                    confirmButtonColor: '#3085d6',
+                    width: '600px'
+                });
+            } else {
+                throw new Error('Error cargando detalles');
+            }
+        } catch (error) {
+            console.error('Error cargando detalles:', error);
+            await this.mostrarError('Error al cargar los detalles de la entrega');
+        }
+    }
+
+    // ==================== FUNCIONES DE APOYO ====================
+
+    obtenerClaseFila(entrega) {
+        if (this.estaAtrasada(entrega)) return 'fila-urgente';
+        if (this.esUrgente(entrega)) return 'fila-alerta';
+        return '';
+    }
+
+    obtenerClaseTiempo(entrega) {
+        if (this.estaAtrasada(entrega)) return 'tiempo-retrasado';
+        if (this.esProxima(entrega)) return 'tiempo-proximo';
+        return 'tiempo-cumplido';
+    }
+
+    estaAtrasada(entrega) {
+        if (!entrega.fecha_estimada_entrega || entrega.id_estado_entrega === 5) return false;
+        const estimada = new Date(entrega.fecha_estimada_entrega);
+        const ahora = new Date();
+        return estimada < ahora;
+    }
+
+    esProxima(entrega) {
+        if (!entrega.fecha_estimada_entrega || entrega.id_estado_entrega === 5) return false;
+        const estimada = new Date(entrega.fecha_estimada_entrega);
+        const ahora = new Date();
+        const unaHora = 60 * 60 * 1000;
+        return (estimada - ahora) <= unaHora;
+    }
+
+    esUrgente(entrega) {
+        return this.estaAtrasada(entrega) || (entrega.reintentos || 0) >= 2;
+    }
+
+    puedeConfirmar(entrega) {
+        if (this.esRepartidor() && entrega.id_repartidor !== this.obtenerUserId()) {
+            return false;
+        }
+        return [1, 2, 3, 4].includes(entrega.id_estado_entrega); // Pendiente, Asignada, En Camino, En Destino
+    }
+
+    puedeReintentar(entrega) {
+        if (this.esRepartidor() && entrega.id_repartidor !== this.obtenerUserId()) {
+            return false;
+        }
+        return entrega.id_estado_entrega === 6 && (entrega.reintentos || 0) < 3; // Fallida con menos de 3 reintentos
+    }
+
+    puedeReasignar(entrega) {
+        if (this.esRepartidor()) return false;
+        return [1, 6].includes(entrega.id_estado_entrega); // Pendiente o Fallida
+    }
+
+    puedeCambiarEstado(entrega) {
+        if (this.esRepartidor()) return false;
+        return true; // Admin y planificador pueden cambiar cualquier estado
+    }
+
+    puedeEliminar(entrega) {
+        if (this.esRepartidor()) return false;
+        // Solo se pueden eliminar entregas en estado pendiente
+        return entrega.id_estado_entrega === 1;
+    }
+
+    getEstadoSlug(idEstado) {
+        const estados = {
+            1: 'pendiente',
+            2: 'asignada',
+            3: 'en_camino',
+            4: 'en_destino',
+            5: 'entregada',
+            6: 'fallida'
+        };
+        return estados[idEstado] || 'pendiente';
+    }
+
+    getEstadoTexto(idEstado) {
+        const estados = {
+            1: 'Pendiente',
+            2: 'Asignada',
+            3: 'En Camino',
+            4: 'En Destino',
+            5: 'Entregada',
+            6: 'Fallida'
+        };
+        return estados[idEstado] || 'Desconocido';
+    }
+
     formatearFechaHora(fechaString) {
         if (!fechaString) return 'N/A';
         const fecha = new Date(fechaString);
@@ -659,13 +890,8 @@ class EntregasApp {
     }
 
     formatearProductos(items) {
-        if (!items) return 'N/A';
-        try {
-            const productos = typeof items === 'string' ? JSON.parse(items) : items;
-            return productos.map(p => `${p.cantidad}x ${p.nombre_producto || 'Producto'}`).join(', ');
-        } catch {
-            return 'N/A';
-        }
+        if (!items || !Array.isArray(items)) return 'N/A';
+        return items.map(p => `${p.cantidad || 1}x ${p.nombre_producto || 'Producto'}`).join(', ');
     }
 
     formatearMoneda(monto) {
@@ -675,12 +901,20 @@ class EntregasApp {
         }).format(monto);
     }
 
+    esRepartidor() {
+        return typeof userRole !== 'undefined' && userRole === 3; // Rol 3 = Repartidor
+    }
+
+    obtenerUserId() {
+        return typeof userId !== 'undefined' ? userId : null;
+    }
+
     mostrarCargando() {
         const tbody = document.getElementById('tablaEntregas');
         if (tbody) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="8" class="text-center">
+                    <td colspan="6" class="text-center">
                         <div class="loading-spinner">
                             <i class="fas fa-spinner fa-spin"></i>
                             <span>Cargando entregas...</span>
@@ -691,64 +925,17 @@ class EntregasApp {
         }
     }
 
-    // ==================== AUTENTICACIÓN Y PERMISOS ====================
-    esRepartidor() {
-        // Esta función debería leer del contexto de la sesión
-        // Por ahora, asumimos que está disponible globalmente
-        return typeof userRole !== 'undefined' && userRole === 'Repartidor';
+    // Métodos placeholder para funcionalidades futuras
+    mostrarModalReasignar(idEntrega) {
+        this.mostrarInfo('Funcionalidad de reasignación en desarrollo');
     }
 
-    obtenerUserId() {
-        // Esta función debería leer del contexto de la sesión
-        return typeof userId !== 'undefined' ? userId : null;
+    mostrarModalCambiarEstado(idEntrega) {
+        this.mostrarInfo('Funcionalidad de cambio de estado en desarrollo');
     }
 
-    // ==================== NOTIFICACIONES ====================
-    mostrarExito(mensaje) {
-        this.mostrarNotificacion(mensaje, 'success');
-    }
-
-    mostrarError(mensaje) {
-        this.mostrarNotificacion(mensaje, 'error');
-    }
-
-    mostrarInfo(mensaje) {
-        this.mostrarNotificacion(mensaje, 'info');
-    }
-
-    mostrarNotificacion(mensaje, tipo = 'info') {
-        // Implementar sistema de notificaciones
-        console.log(`[${tipo.toUpperCase()}] ${mensaje}`);
-
-        // Notificación simple con alert nativo por ahora
-        const colores = {
-            success: '#27ae60',
-            error: '#e74c3c',
-            info: '#3498db',
-            warning: '#f39c12'
-        };
-
-        // Crear notificación toast simple
-        const toast = document.createElement('div');
-        toast.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: ${colores[tipo] || '#3498db'};
-            color: white;
-            padding: 12px 20px;
-            border-radius: 4px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            z-index: 10000;
-            max-width: 300px;
-            word-wrap: break-word;
-        `;
-        toast.textContent = mensaje;
-        document.body.appendChild(toast);
-
-        setTimeout(() => {
-            document.body.removeChild(toast);
-        }, 5000);
+    actualizarMapa() {
+        this.mostrarInfo('Funcionalidad de mapa en desarrollo');
     }
 }
 
