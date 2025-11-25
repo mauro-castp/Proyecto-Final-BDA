@@ -214,6 +214,7 @@ def init_pedidos_routes(app, mysql):
             mysql.connection.commit()
             cur.close()
 
+            # El procedimiento devuelve {success: 1} o {success: 0}
             if result and result.get('success') == 1:
                 return jsonify({'message': 'Pedido eliminado exitosamente'})
             else:

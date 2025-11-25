@@ -1471,13 +1471,14 @@ BEGIN
 END $$
 DELIMITER ;
 
--- Procedimiento para eliminar pedido (solo si está pendiente)
+-- Procedimiento para eliminar pedido (solo si está pendiente y sin entregas relacionadas)
 DELIMITER $$
 CREATE PROCEDURE pedidoEliminar(
     IN p_id_pedido INT
 )
 BEGIN
     DECLARE v_estado_actual INT;
+    DECLARE v_tiene_entregas INT DEFAULT 0;
     DECLARE v_rows_affected INT DEFAULT 0;
     
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
@@ -1493,8 +1494,13 @@ BEGIN
     FROM pedidos 
     WHERE id_pedido = p_id_pedido;
     
-    -- Solo permitir eliminar pedidos en estado pendiente (1)
-    IF v_estado_actual = 1 THEN
+    -- Verificar si tiene entregas relacionadas
+    SELECT COUNT(*) INTO v_tiene_entregas
+    FROM entregas 
+    WHERE id_pedido = p_id_pedido;
+    
+    -- Solo permitir eliminar pedidos en estado pendiente (1) y sin entregas
+    IF v_estado_actual = 1 AND v_tiene_entregas = 0 THEN
         -- Eliminar detalles del pedido primero
         DELETE FROM detalle_pedido WHERE id_pedido = p_id_pedido;
         
@@ -1507,12 +1513,21 @@ BEGIN
     IF v_rows_affected > 0 THEN
         SELECT 1 as success;
     ELSE
-        SELECT 0 as success;
+        -- Determinar el motivo del fallo
+        IF v_estado_actual != 1 THEN
+            SELECT 0 as success, 'No se puede eliminar el pedido en su estado actual' as mensaje;
+        ELSEIF v_tiene_entregas > 0 THEN
+            SELECT 0 as success, 'No se puede eliminar el pedido porque tiene entregas relacionadas' as mensaje;
+        ELSE
+            SELECT 0 as success, 'No se pudo eliminar el pedido' as mensaje;
+        END IF;
     END IF;
     
     COMMIT;
+END $$
+DELIMITER ;
 
-    
+
 DELIMITER $$
 CREATE PROCEDURE obtenerNombreUsuario(
     IN p_id_usuario INT

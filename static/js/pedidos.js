@@ -1,4 +1,4 @@
-// static/js/pedidos.js - VERSIÓN COMPLETAMENTE CORREGIDA
+// static/js/pedidos.js - VERSIÓN SIMPLIFICADA Y CORREGIDA
 class PedidosApp {
     constructor() {
         this.pedidos = [];
@@ -581,10 +581,6 @@ class PedidosApp {
                                     ).join('')}
                                 </select>
                             </div>
-                            <div class="form-group" id="motivoCancelacionGroup" style="display: none;">
-                                <label for="motivoCancelacion">Motivo de Cancelación</label>
-                                <textarea id="motivoCancelacion" class="form-control" placeholder="Ingrese el motivo de cancelación..." rows="3"></textarea>
-                            </div>
                         </form>
                     </div>
                     <div class="modal-footer">
@@ -604,24 +600,6 @@ class PedidosApp {
         
         // Mostrar modal
         document.getElementById('modalEditarPedido').style.display = 'block';
-        
-        // Configurar evento para mostrar/ocultar motivo de cancelación
-        document.getElementById('nuevoEstadoPedido').addEventListener('change', (e) => {
-            this.toggleMotivoCancelacion(e.target.value);
-        });
-    }
-
-    toggleMotivoCancelacion(estadoId) {
-        const motivoGroup = document.getElementById('motivoCancelacionGroup');
-        const estadoCancelado = this.estadosPedido.find(estado => 
-            estado.nombre_estado.toLowerCase() === 'cancelado'
-        );
-        
-        if (estadoCancelado && estadoId == estadoCancelado.id_estado_pedido) {
-            motivoGroup.style.display = 'block';
-        } else {
-            motivoGroup.style.display = 'none';
-        }
     }
 
     cerrarModalEditar() {
@@ -635,37 +613,69 @@ class PedidosApp {
     async actualizarEstadoPedido() {
         try {
             const nuevoEstadoId = document.getElementById('nuevoEstadoPedido').value;
-            const motivoCancelacion = document.getElementById('motivoCancelacion')?.value || '';
 
             if (!nuevoEstadoId) {
                 this.mostrarError('Por favor seleccione un estado');
                 return;
             }
 
-            const estadoCancelado = this.estadosPedido.find(estado => 
-                estado.nombre_estado.toLowerCase() === 'cancelado'
-            );
+            // Para todos los estados, usar el endpoint de actualización normal
+            const formData = {
+                id_estado_pedido: parseInt(nuevoEstadoId)
+            };
 
-            // Si es cancelación, usar el endpoint específico de cancelar
-            if (estadoCancelado && nuevoEstadoId == estadoCancelado.id_estado_pedido) {
-                if (!motivoCancelacion.trim()) {
-                    this.mostrarError('Por favor ingrese un motivo de cancelación');
-                    return;
+            const response = await fetch(`/api/pedidos/${this.pedidoEditando.id_pedido}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData)
+            });
+
+            const result = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(result.error || 'Error actualizando pedido');
+            }
+
+            this.mostrarExito('Estado del pedido actualizado exitosamente');
+            this.cerrarModalEditar();
+            await this.cargarPedidos();
+
+        } catch (error) {
+            console.error('Error actualizando pedido:', error);
+            this.mostrarError(error.message || 'Error al actualizar el pedido');
+        }
+    }
+
+    async cancelarPedido(idPedido) {
+        const result = await Swal.fire({
+            title: '¿Cancelar pedido?',
+            text: "El pedido será marcado como cancelado",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Sí, cancelar',
+            cancelButtonText: 'Volver'
+        });
+
+        if (result.isConfirmed) {
+            try {
+                // Buscar el ID del estado "cancelado"
+                const estadoCancelado = this.estadosPedido.find(estado => 
+                    estado.nombre_estado.toLowerCase() === 'cancelado'
+                );
+
+                if (!estadoCancelado) {
+                    throw new Error('No se encontró el estado cancelado');
                 }
-                
-                const cancelado = await this.cancelarPedido(this.pedidoEditando.id_pedido, motivoCancelacion);
-                if (cancelado) {
-                    this.mostrarExito('Pedido cancelado exitosamente');
-                    this.cerrarModalEditar();
-                    await this.cargarPedidos();
-                }
-            } else {
-                // Para otros estados, usar el endpoint de actualización normal
+
                 const formData = {
-                    id_estado_pedido: parseInt(nuevoEstadoId)
+                    id_estado_pedido: estadoCancelado.id_estado_pedido
                 };
 
-                const response = await fetch(`/api/pedidos/${this.pedidoEditando.id_pedido}`, {
+                const response = await fetch(`/api/pedidos/${idPedido}`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
@@ -676,70 +686,20 @@ class PedidosApp {
                 const result = await response.json();
                 
                 if (!response.ok) {
-                    throw new Error(result.error || 'Error actualizando pedido');
+                    throw new Error(result.error || 'Error cancelando pedido');
                 }
 
-                this.mostrarExito('Estado del pedido actualizado exitosamente');
-                this.cerrarModalEditar();
+                this.mostrarExito('Pedido cancelado exitosamente');
                 await this.cargarPedidos();
-            }
 
-        } catch (error) {
-            console.error('Error actualizando pedido:', error);
-            this.mostrarError(error.message || 'Error al actualizar el pedido');
+            } catch (error) {
+                console.error('Error cancelando pedido:', error);
+                this.mostrarError(error.message || 'Error al cancelar el pedido');
+            }
         }
     }
 
-    async cancelarPedido(idPedido, motivo = null) {
-        let motivoFinal = motivo;
-        
-        // Si no se proporcionó motivo, pedirlo
-        if (!motivoFinal) {
-            const { value: motivoInput } = await Swal.fire({
-                title: 'Cancelar Pedido',
-                input: 'textarea',
-                inputLabel: 'Motivo de cancelación',
-                inputPlaceholder: 'Ingrese el motivo de la cancelación...',
-                inputAttributes: {
-                    'aria-label': 'Ingrese el motivo de la cancelación'
-                },
-                showCancelButton: true,
-                confirmButtonText: 'Cancelar Pedido',
-                cancelButtonText: 'Volver',
-                inputValidator: (value) => {
-                    if (!value) {
-                        return 'Debe ingresar un motivo para cancelar el pedido';
-                    }
-                }
-            });
-
-            if (!motivoInput) return false; // Usuario canceló
-            motivoFinal = motivoInput;
-        }
-
-        try {
-            const response = await fetch(`/api/pedidos/${idPedido}/cancelar`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ motivo: motivoFinal })
-            });
-
-            const result = await response.json();
-            
-            if (!response.ok) {
-                throw new Error(result.error || 'Error cancelando pedido');
-            }
-
-            return true;
-
-        } catch (error) {
-            console.error('Error cancelando pedido:', error);
-            this.mostrarError(error.message || 'Error al cancelar el pedido');
-            return false;
-        }
-    }
+// ==================== MÉTODOS CORREGIDOS PARA ELIMINAR ====================
 
     async eliminarPedido(idPedido) {
         const result = await Swal.fire({
@@ -759,18 +719,37 @@ class PedidosApp {
                     method: 'DELETE'
                 });
 
-                const result = await response.json();
-                
+                const resultData = await response.json();
+
                 if (!response.ok) {
-                    throw new Error(result.error || 'Error eliminando pedido');
+                    const errorMessage = resultData.error || resultData.mensaje || 'Error al eliminar el pedido';
+                    throw new Error(errorMessage);
                 }
 
-                this.mostrarExito(result.message || 'Pedido eliminado exitosamente');
-                await this.cargarPedidos();
+                // Manejar el formato de respuesta del procedimiento
+                if (resultData.success === 1) {
+                    this.mostrarExito('Pedido eliminado exitosamente');
+                    await this.cargarPedidos();
+                } else {
+                    const errorMessage = resultData.mensaje || 'No se pudo eliminar el pedido';
+                    throw new Error(errorMessage);
+                }
 
             } catch (error) {
                 console.error('Error eliminando pedido:', error);
-                this.mostrarError(error.message || 'Error al eliminar el pedido');
+                
+                // Mensajes de error específicos
+                let mensajeError = error.message;
+                
+                if (error.message.includes('entregas relacionadas')) {
+                    mensajeError = 'No se puede eliminar el pedido porque ya tiene entregas asociadas. Solo se pueden eliminar pedidos sin entregas.';
+                } else if (error.message.includes('estado actual')) {
+                    mensajeError = 'Solo se pueden eliminar pedidos en estado "pendiente".';
+                } else if (error.message.includes('500')) {
+                    mensajeError = 'Error interno del servidor. El pedido no pudo ser eliminado.';
+                }
+                
+                this.mostrarError(mensajeError);
             }
         }
     }
